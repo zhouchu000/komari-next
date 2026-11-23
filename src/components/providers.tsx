@@ -11,13 +11,14 @@ import { Toaster } from "@/components/ui/sonner"
 import { OfflineIndicator } from "@/components/OfflineIndicator"
 import { PWAInstallPrompt } from "@/components/PWAInstallPrompt"
 import { PWAUpdatePrompt } from "@/components/PWAUpdatePrompt"
-import i18n, { detectClientLanguage } from "@/i18n/config"
+import i18n, { normalizeLanguage } from "@/i18n/config"
 
 function I18nClientLanguageSync() {
   React.useEffect(() => {
-    const detectedLanguage = detectClientLanguage();
-    if (i18n.language !== detectedLanguage) {
-      void i18n.changeLanguage(detectedLanguage);
+    const queryLanguage = new URLSearchParams(window.location.search).get("lng");
+    const normalized = normalizeLanguage(queryLanguage);
+    if (normalized && i18n.language !== normalized) {
+      void i18n.changeLanguage(normalized);
     }
   }, []);
 
@@ -28,7 +29,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <NextThemesProvider
       attribute="class"
-      defaultTheme="system"
+      defaultTheme="dark"
       enableSystem
       disableTransitionOnChange
     >

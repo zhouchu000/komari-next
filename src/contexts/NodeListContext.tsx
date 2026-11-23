@@ -2,7 +2,7 @@
 
 import React from "react";
 import { useRPC2Call } from "./RPC2Context";
-import { stringToBytes } from "@/utils/unitHelper";
+import { classifyTrafficLimit, type TrafficQuotaState } from "@/lib/trafficQuota";
 
 export type NodeBasicInfo = {
   /** 节点唯一标识符 */
@@ -46,6 +46,8 @@ export type NodeBasicInfo = {
   group: string;
   /** 流量阈值 */
   traffic_limit: number;
+  /** 流量配额是否已知。0 字节且 unlimited 才是无限，unknown 不能显示成无限。 */
+  traffic_quota: TrafficQuotaState;
   /** 流量阈值类型 */
   traffic_limit_type: undefined | "sum" | "max" | "min" | "up" | "down";
   /** 过期时间 */
@@ -69,41 +71,6 @@ const NodeListContext = React.createContext<NodeListContextType | undefined>(
   undefined
 );
 
-function normalizeTrafficLimit(value: unknown): number {
-  if (typeof value === "string") {
-    const trimmed = value.trim();
-    if (!trimmed) return 0;
-
-    // Strings with units or expressions should always be parsed as byte sizes.
-    if (/[a-zA-Z\s,*]/.test(trimmed)) {
-      return stringToBytes(trimmed);
-    }
-
-    const numeric = Number(trimmed);
-    if (!Number.isFinite(numeric) || numeric <= 0) return 0;
-
-    // Backward compatibility: some payloads appear to send plain GB counts.
-    if (numeric < 1024 ** 2) {
-      return numeric * 1024 ** 3;
-    }
-
-    return numeric;
-  }
-
-  if (typeof value === "number") {
-    if (!Number.isFinite(value) || value <= 0) return 0;
-
-    // Backward compatibility: treat tiny raw numbers as legacy GiB limits.
-    if (value < 1024 ** 2) {
-      return value * 1024 ** 3;
-    }
-
-    return value;
-  }
-
-  return 0;
-}
-
 export const NodeListProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
@@ -123,7 +90,9 @@ export const NodeListProvider: React.FC<{ children: React.ReactNode }> = ({
           return;
         }
         // 将 { [uuid]: Client } 转换为 NodeBasicInfo[]
-        const list: NodeBasicInfo[] = Object.values(result).map((n: any) => ({
+        const list: NodeBasicInfo[] = Object.values(result).map((n: any) => {
+          const quota = classifyTrafficLimit(n.traffic_limit);
+          return {
           uuid: n.uuid,
           name: n.name,
           cpu_name: n.cpu_name,
@@ -145,14 +114,16 @@ export const NodeListProvider: React.FC<{ children: React.ReactNode }> = ({
           billing_cycle: n.billing_cycle ?? 0,
           currency: n.currency ?? "",
           group: n.group ?? "",
-          traffic_limit: normalizeTrafficLimit(n.traffic_limit),
+          traffic_limit: quota.bytes,
+          traffic_quota: quota.state,
           traffic_limit_type: n.traffic_limit_type,
           expired_at: n.expired_at ?? "",
           created_at: n.created_at ?? "",
           updated_at: n.updated_at ?? "",
           ipv4: n.ipv4,
           ipv6: n.ipv6,
-        }));
+        };
+        });
         setNodeList(list);
       })
       .catch((err: any) => {

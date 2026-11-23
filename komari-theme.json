@@ -1,8 +1,8 @@
 {
     "name": "Komari Next",
     "short": "next",
-    "description": "NextJS theme for Komari Monitor",
-    "version": "1.4.20",
+    "description": "NextJS theme for Komari Monitor, with city-level map and per-target latency",
+    "version": "1.5.0",
     "author": "tonyliuzj",
     "url": "https://github.com/tonyliuzj/komari-next",
     "preview": "preview.png",
@@ -23,7 +23,7 @@
                     "midnight",
                     "rose"
                 ],
-                "default": "default"
+                "default": "midnight"
             },
             {
                 "key": "cardLayout",
@@ -46,7 +46,7 @@
                     "default",
                     "quality-bars"
                 ],
-                "default": "default"
+                "default": "quality-bars"
             },
             {
                 "key": "cardBlurEnabled",
@@ -123,7 +123,7 @@
                     "dark",
                     "system"
                 ],
-                "default": "system"
+                "default": "dark"
             },
             {
                 "key": "language",
@@ -135,7 +135,7 @@
                     "zh-CN",
                     "zh-TW"
                 ],
-                "default": "auto"
+                "default": "zh-CN"
             },
             {
                 "key": "backgroundImageUrl",
@@ -217,7 +217,47 @@
                 "key": "guestDisplay.showExpiredAt",
                 "type": "bool",
                 "label": "Show expiration to guests",
-                "default": false
+                "default": true
+            },
+            {
+                "type": "title",
+                "name": {
+                    "zh-CN": "地图与家宽延迟",
+                    "zh-TW": "地圖與家寬延遲",
+                    "en-US": "Map and home latency"
+                }
+            },
+            {
+                "key": "nodeCityMap",
+                "type": "text",
+                "default": "",
+                "label": "City map JSON",
+                "name": {
+                    "zh-CN": "城市地图 JSON",
+                    "zh-TW": "城市地圖 JSON",
+                    "en-US": "City map JSON"
+                },
+                "help": {
+                    "zh-CN": "粘贴 UUID 到城市坐标的 JSON。默认留空，不把私人节点写进主题。未知或冲突坐标不会落点，也不会显示 IP。",
+                    "zh-TW": "貼上 UUID 到城市座標的 JSON。預設留空。未知或衝突座標不會落點，也不會顯示 IP。",
+                    "en-US": "Paste UUID to city coordinate JSON. Leave empty by default. Unknown or conflicting coordinates are not pinned, and IP addresses are not shown."
+                }
+            },
+            {
+                "key": "homeLatencyMap",
+                "type": "text",
+                "default": "",
+                "label": "Home latency map JSON",
+                "name": {
+                    "zh-CN": "家宽延迟映射 JSON",
+                    "zh-TW": "家寬延遲映射 JSON",
+                    "en-US": "Home latency map JSON"
+                },
+                "help": {
+                    "zh-CN": "填写 source_uuid 和 routes（task_id、server_uuid、protocol）。留空显示未配置。不要把测速任务写进来。没有映射或没有样本时显示未配置或未知。",
+                    "zh-TW": "填寫 source_uuid 和 routes（task_id、server_uuid、protocol）。留空顯示未配置。不要把測速任務寫進來。",
+                    "en-US": "Set source_uuid and routes (task_id, server_uuid, protocol). Empty means not configured. Do not add speed-test tasks."
+                }
             }
         ],
         "fields": [
@@ -236,7 +276,7 @@
                     "zh-CN": "设置主题默认颜色方案，访客仍可在本地覆盖。",
                     "en-US": "Set the default color scheme. Visitors can still override it locally."
                 },
-                "default": "default",
+                "default": "midnight",
                 "options": "default,ocean,sunset,forest,midnight,rose"
             },
             {
@@ -256,7 +296,7 @@
                     "zh-CN": "默认卡片设计",
                     "en-US": "Default Card Design"
                 },
-                "default": "default",
+                "default": "quality-bars",
                 "options": "default,quality-bars"
             },
             {
@@ -343,7 +383,7 @@
                     "zh-CN": "默认外观",
                     "en-US": "Default Appearance"
                 },
-                "default": "system",
+                "default": "dark",
                 "options": "light,dark,system"
             },
             {
@@ -357,7 +397,7 @@
                     "zh-CN": "选择 auto 时使用访客浏览器语言。",
                     "en-US": "Use auto to follow the visitor browser language."
                 },
-                "default": "auto",
+                "default": "zh-CN",
                 "options": "auto,en,zh-CN,zh-TW"
             },
             {
@@ -504,7 +544,47 @@
                     "zh-TW": "開啟後，未登入訪客可以看到節點到期狀態。",
                     "en-US": "When enabled, visitors can see node expiration status."
                 },
-                "default": false
+                "default": true
+            },
+            {
+                "type": "title",
+                "name": {
+                    "zh-CN": "地图与家宽延迟",
+                    "zh-TW": "地圖與家寬延遲",
+                    "en-US": "Map and home latency"
+                }
+            },
+            {
+                "key": "nodeCityMap",
+                "type": "string",
+                "default": "",
+                "label": "City map JSON",
+                "name": {
+                    "zh-CN": "城市地图 JSON",
+                    "zh-TW": "城市地圖 JSON",
+                    "en-US": "City map JSON"
+                },
+                "help": {
+                    "zh-CN": "粘贴 UUID 到城市坐标的 JSON。默认留空，不把私人节点写进主题。未知或冲突坐标不会落点，也不会显示 IP。",
+                    "zh-TW": "貼上 UUID 到城市座標的 JSON。預設留空。未知或衝突座標不會落點，也不會顯示 IP。",
+                    "en-US": "Paste UUID to city coordinate JSON. Leave empty by default. Unknown or conflicting coordinates are not pinned, and IP addresses are not shown."
+                }
+            },
+            {
+                "key": "homeLatencyMap",
+                "type": "string",
+                "default": "",
+                "label": "Home latency map JSON",
+                "name": {
+                    "zh-CN": "家宽延迟映射 JSON",
+                    "zh-TW": "家寬延遲映射 JSON",
+                    "en-US": "Home latency map JSON"
+                },
+                "help": {
+                    "zh-CN": "填写 source_uuid 和 routes（task_id、server_uuid、protocol）。留空显示未配置。不要把测速任务写进来。没有映射或没有样本时显示未配置或未知。",
+                    "zh-TW": "填寫 source_uuid 和 routes（task_id、server_uuid、protocol）。留空顯示未配置。不要把測速任務寫進來。",
+                    "en-US": "Set source_uuid and routes (task_id, server_uuid, protocol). Empty means not configured. Do not add speed-test tasks."
+                }
             }
         ],
         "options": [
@@ -519,7 +599,7 @@
                     "zh-CN": "默认颜色主题",
                     "en-US": "Default Color Theme"
                 },
-                "default": "default",
+                "default": "midnight",
                 "options": "default,ocean,sunset,forest,midnight,rose"
             },
             {
@@ -539,7 +619,7 @@
                     "zh-CN": "默认卡片设计",
                     "en-US": "Default Card Design"
                 },
-                "default": "default",
+                "default": "quality-bars",
                 "options": "default,quality-bars"
             },
             {
@@ -626,7 +706,7 @@
                     "zh-CN": "默认外观",
                     "en-US": "Default Appearance"
                 },
-                "default": "system",
+                "default": "dark",
                 "options": "light,dark,system"
             },
             {
@@ -640,7 +720,7 @@
                     "zh-CN": "选择 auto 时使用访客浏览器语言。",
                     "en-US": "Use auto to follow the visitor browser language."
                 },
-                "default": "auto",
+                "default": "zh-CN",
                 "options": "auto,en,zh-CN,zh-TW"
             },
             {
@@ -787,7 +867,47 @@
                     "zh-TW": "開啟後，未登入訪客可以看到節點到期狀態。",
                     "en-US": "When enabled, visitors can see node expiration status."
                 },
-                "default": false
+                "default": true
+            },
+            {
+                "type": "title",
+                "name": {
+                    "zh-CN": "地图与家宽延迟",
+                    "zh-TW": "地圖與家寬延遲",
+                    "en-US": "Map and home latency"
+                }
+            },
+            {
+                "key": "nodeCityMap",
+                "type": "string",
+                "default": "",
+                "label": "City map JSON",
+                "name": {
+                    "zh-CN": "城市地图 JSON",
+                    "zh-TW": "城市地圖 JSON",
+                    "en-US": "City map JSON"
+                },
+                "help": {
+                    "zh-CN": "粘贴 UUID 到城市坐标的 JSON。默认留空，不把私人节点写进主题。未知或冲突坐标不会落点，也不会显示 IP。",
+                    "zh-TW": "貼上 UUID 到城市座標的 JSON。預設留空。未知或衝突座標不會落點，也不會顯示 IP。",
+                    "en-US": "Paste UUID to city coordinate JSON. Leave empty by default. Unknown or conflicting coordinates are not pinned, and IP addresses are not shown."
+                }
+            },
+            {
+                "key": "homeLatencyMap",
+                "type": "string",
+                "default": "",
+                "label": "Home latency map JSON",
+                "name": {
+                    "zh-CN": "家宽延迟映射 JSON",
+                    "zh-TW": "家寬延遲映射 JSON",
+                    "en-US": "Home latency map JSON"
+                },
+                "help": {
+                    "zh-CN": "填写 source_uuid 和 routes（task_id、server_uuid、protocol）。留空显示未配置。不要把测速任务写进来。没有映射或没有样本时显示未配置或未知。",
+                    "zh-TW": "填寫 source_uuid 和 routes（task_id、server_uuid、protocol）。留空顯示未配置。不要把測速任務寫進來。",
+                    "en-US": "Set source_uuid and routes (task_id, server_uuid, protocol). Empty means not configured. Do not add speed-test tasks."
+                }
             }
         ],
         "items": [
@@ -806,7 +926,7 @@
                     "zh-CN": "设置主题默认颜色方案，访客仍可在本地覆盖。",
                     "en-US": "Set the default color scheme. Visitors can still override it locally."
                 },
-                "default": "default",
+                "default": "midnight",
                 "options": "default,ocean,sunset,forest,midnight,rose"
             },
             {
@@ -826,7 +946,7 @@
                     "zh-CN": "默认卡片设计",
                     "en-US": "Default Card Design"
                 },
-                "default": "default",
+                "default": "quality-bars",
                 "options": "default,quality-bars"
             },
             {
@@ -913,7 +1033,7 @@
                     "zh-CN": "默认外观",
                     "en-US": "Default Appearance"
                 },
-                "default": "system",
+                "default": "dark",
                 "options": "light,dark,system"
             },
             {
@@ -927,7 +1047,7 @@
                     "zh-CN": "选择 auto 时使用访客浏览器语言。",
                     "en-US": "Use auto to follow the visitor browser language."
                 },
-                "default": "auto",
+                "default": "zh-CN",
                 "options": "auto,en,zh-CN,zh-TW"
             },
             {
@@ -1074,7 +1194,47 @@
                     "zh-TW": "開啟後，未登入訪客可以看到節點到期狀態。",
                     "en-US": "When enabled, visitors can see node expiration status."
                 },
-                "default": false
+                "default": true
+            },
+            {
+                "type": "title",
+                "name": {
+                    "zh-CN": "地图与家宽延迟",
+                    "zh-TW": "地圖與家寬延遲",
+                    "en-US": "Map and home latency"
+                }
+            },
+            {
+                "key": "nodeCityMap",
+                "type": "string",
+                "default": "",
+                "label": "City map JSON",
+                "name": {
+                    "zh-CN": "城市地图 JSON",
+                    "zh-TW": "城市地圖 JSON",
+                    "en-US": "City map JSON"
+                },
+                "help": {
+                    "zh-CN": "粘贴 UUID 到城市坐标的 JSON。默认留空，不把私人节点写进主题。未知或冲突坐标不会落点，也不会显示 IP。",
+                    "zh-TW": "貼上 UUID 到城市座標的 JSON。預設留空。未知或衝突座標不會落點，也不會顯示 IP。",
+                    "en-US": "Paste UUID to city coordinate JSON. Leave empty by default. Unknown or conflicting coordinates are not pinned, and IP addresses are not shown."
+                }
+            },
+            {
+                "key": "homeLatencyMap",
+                "type": "string",
+                "default": "",
+                "label": "Home latency map JSON",
+                "name": {
+                    "zh-CN": "家宽延迟映射 JSON",
+                    "zh-TW": "家寬延遲映射 JSON",
+                    "en-US": "Home latency map JSON"
+                },
+                "help": {
+                    "zh-CN": "填写 source_uuid 和 routes（task_id、server_uuid、protocol）。留空显示未配置。不要把测速任务写进来。没有映射或没有样本时显示未配置或未知。",
+                    "zh-TW": "填寫 source_uuid 和 routes（task_id、server_uuid、protocol）。留空顯示未配置。不要把測速任務寫進來。",
+                    "en-US": "Set source_uuid and routes (task_id, server_uuid, protocol). Empty means not configured. Do not add speed-test tasks."
+                }
             }
         ],
         "data": [
@@ -1093,7 +1253,7 @@
                     "zh-CN": "设置主题默认颜色方案，访客仍可在本地覆盖。",
                     "en-US": "Set the default color scheme. Visitors can still override it locally."
                 },
-                "default": "default",
+                "default": "midnight",
                 "options": "default,ocean,sunset,forest,midnight,rose"
             },
             {
@@ -1113,7 +1273,7 @@
                     "zh-CN": "默认卡片设计",
                     "en-US": "Default Card Design"
                 },
-                "default": "default",
+                "default": "quality-bars",
                 "options": "default,quality-bars"
             },
             {
@@ -1200,7 +1360,7 @@
                     "zh-CN": "默认外观",
                     "en-US": "Default Appearance"
                 },
-                "default": "system",
+                "default": "dark",
                 "options": "light,dark,system"
             },
             {
@@ -1214,7 +1374,7 @@
                     "zh-CN": "选择 auto 时使用访客浏览器语言。",
                     "en-US": "Use auto to follow the visitor browser language."
                 },
-                "default": "auto",
+                "default": "zh-CN",
                 "options": "auto,en,zh-CN,zh-TW"
             },
             {
@@ -1361,7 +1521,47 @@
                     "zh-TW": "開啟後，未登入訪客可以看到節點到期狀態。",
                     "en-US": "When enabled, visitors can see node expiration status."
                 },
-                "default": false
+                "default": true
+            },
+            {
+                "type": "title",
+                "name": {
+                    "zh-CN": "地图与家宽延迟",
+                    "zh-TW": "地圖與家寬延遲",
+                    "en-US": "Map and home latency"
+                }
+            },
+            {
+                "key": "nodeCityMap",
+                "type": "string",
+                "default": "",
+                "label": "City map JSON",
+                "name": {
+                    "zh-CN": "城市地图 JSON",
+                    "zh-TW": "城市地圖 JSON",
+                    "en-US": "City map JSON"
+                },
+                "help": {
+                    "zh-CN": "粘贴 UUID 到城市坐标的 JSON。默认留空，不把私人节点写进主题。未知或冲突坐标不会落点，也不会显示 IP。",
+                    "zh-TW": "貼上 UUID 到城市座標的 JSON。預設留空。未知或衝突座標不會落點，也不會顯示 IP。",
+                    "en-US": "Paste UUID to city coordinate JSON. Leave empty by default. Unknown or conflicting coordinates are not pinned, and IP addresses are not shown."
+                }
+            },
+            {
+                "key": "homeLatencyMap",
+                "type": "string",
+                "default": "",
+                "label": "Home latency map JSON",
+                "name": {
+                    "zh-CN": "家宽延迟映射 JSON",
+                    "zh-TW": "家寬延遲映射 JSON",
+                    "en-US": "Home latency map JSON"
+                },
+                "help": {
+                    "zh-CN": "填写 source_uuid 和 routes（task_id、server_uuid、protocol）。留空显示未配置。不要把测速任务写进来。没有映射或没有样本时显示未配置或未知。",
+                    "zh-TW": "填寫 source_uuid 和 routes（task_id、server_uuid、protocol）。留空顯示未配置。不要把測速任務寫進來。",
+                    "en-US": "Set source_uuid and routes (task_id, server_uuid, protocol). Empty means not configured. Do not add speed-test tasks."
+                }
             }
         ]
     }

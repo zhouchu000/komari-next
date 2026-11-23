@@ -1,6 +1,7 @@
 import { Badge, type BadgeColor } from "@/components/ui/badge";
 import { Flex } from "@/components/ui/flex";
 import { cn } from "@/lib/utils";
+import { describeExpiry } from "@/lib/expiryDisplay";
 import { useTranslation } from "react-i18next";
 
 const tagColors: BadgeColor[] = [
@@ -40,7 +41,7 @@ const PriceTags = ({
   price = 0,
   billing_cycle = 30,
   currency = "￥",
-  expired_at = Date.now() + 30 * 24 * 60 * 60 * 1000,
+  expired_at,
   tags = "",
   ip4 = "",
   ip6 = "",
@@ -82,7 +83,8 @@ const PriceTags = ({
 
   const hasBillingInfo = price != 0;
   const shouldShowPrice = showPrice && hasBillingInfo;
-  const shouldShowExpiredAt = showExpiredAt && hasBillingInfo;
+  const shouldShowExpiredAt = showExpiredAt;
+  const expiry = describeExpiry(expired_at);
 
   if (!shouldShowPrice && !shouldShowExpiredAt) {
     return (
@@ -180,41 +182,28 @@ const PriceTags = ({
       )}
       {shouldShowExpiredAt && (
         <Badge
-          color={(() => {
-            const expiredDate = new Date(expired_at);
-            const now = new Date();
-            const diffTime = expiredDate.getTime() - now.getTime();
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-            if (diffDays <= 0 || diffDays <= 7) {
-              return "red";
-            } else if (diffDays <= 15) {
-              return "orange";
-            } else {
-              return "green";
-            }
-          })()}
+          color={
+            expiry.kind === "unknown" || expiry.kind === "invalid"
+              ? "gray"
+              : expiry.kind === "expired" || (expiry.days !== null && expiry.days <= 7)
+                ? "red"
+                : expiry.days !== null && expiry.days <= 15
+                  ? "orange"
+                  : "green"
+          }
           variant="outline"
           className={badgeClassName}
         >
           <label className={labelClassName}>
-            {(() => {
-              const expiredDate = new Date(expired_at);
-              const now = new Date();
-              const diffTime = expiredDate.getTime() - now.getTime();
-              const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-              if (diffDays <= 0) {
-                return t("common.expired");
-              } else if (diffDays > 36500) {
-                // 100 years approximately
-                return t("common.long_term");
-              } else {
-                return t("common.expired_in", {
-                  days: diffDays,
-                });
-              }
-            })()}
+            {expiry.kind === "unknown"
+              ? t("common.expiry_unknown", { defaultValue: "未填写" })
+              : expiry.kind === "invalid"
+                ? t("common.expiry_invalid", { defaultValue: "未知" })
+                : expiry.kind === "expired"
+                  ? t("common.expired")
+                  : expiry.kind === "long_term"
+                    ? t("common.long_term")
+                    : t("common.expired_in", { days: expiry.days })}
           </label>
         </Badge>
       )}

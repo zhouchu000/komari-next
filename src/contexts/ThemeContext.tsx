@@ -12,7 +12,7 @@ import React, {
 } from "react";
 import { useTheme as useNextTheme } from "next-themes";
 import { updateSettings } from "@/lib/api";
-import i18n, { detectClientLanguage, normalizeLanguage } from "@/i18n/config";
+import i18n, { normalizeLanguage } from "@/i18n/config";
 
 export type ColorTheme = "default" | "ocean" | "sunset" | "forest" | "midnight" | "rose";
 export type CardLayout = "classic" | "modern" | "minimal" | "detailed" | "compact";
@@ -63,6 +63,8 @@ export interface ManagedThemeSettings extends Partial<ThemeConfig> {
   nodeViewMode?: NodeViewMode;
   appearance?: Appearance;
   language?: string;
+  nodeCityMap?: string;
+  homeLatencyMap?: string;
 }
 
 interface ThemeContextType {
@@ -76,6 +78,8 @@ interface ThemeContextType {
   nodeViewMode: NodeViewMode;
   appearance: Appearance;
   language: string;
+  nodeCityMap: string;
+  homeLatencyMap: string;
   setColorTheme: (theme: ColorTheme) => void;
   setCardLayout: (layout: CardLayout) => void;
   setCardDesign: (design: CardDesign) => void;
@@ -145,9 +149,9 @@ const CARD_BLUR_STYLE_PROPERTIES = {
 } as const;
 
 const DEFAULT_THEME_CONFIG: ThemeConfig = {
-  colorTheme: "default",
+  colorTheme: "midnight",
   cardLayout: "classic",
-  cardDesign: "default",
+  cardDesign: "quality-bars",
   statusDesign: "default",
   graphDesign: "circle",
   showRamDiskTotal: false,
@@ -173,11 +177,11 @@ export const DEFAULT_STATUS_CARDS_VISIBILITY: StatusCardsVisibility = {
 
 export const DEFAULT_GUEST_DISPLAY_SETTINGS: GuestDisplaySettings = {
   showPrice: false,
-  showExpiredAt: false,
+  showExpiredAt: true,
 };
 
 export const DEFAULT_NODE_VIEW_MODE: NodeViewMode = "grid";
-export const DEFAULT_APPEARANCE: Appearance = "system";
+export const DEFAULT_APPEARANCE: Appearance = "dark";
 
 type AdminState = "loading" | "yes" | "no";
 
@@ -602,6 +606,11 @@ function normalizeManagedThemeSettings(input: unknown): ManagedThemeSettings {
     result.language = language;
   }
 
+  const nodeCityMap = pickString(readDottedValue(source, "nodeCityMap"));
+  const homeLatencyMap = pickString(readDottedValue(source, "homeLatencyMap"));
+  if (nodeCityMap !== undefined) result.nodeCityMap = nodeCityMap;
+  if (homeLatencyMap !== undefined) result.homeLatencyMap = homeLatencyMap;
+
   return result;
 }
 
@@ -700,6 +709,8 @@ function mergeManagedSettings(
       "cardExtraBlurIntensity",
       "appearance",
       "language",
+      "nodeCityMap",
+      "homeLatencyMap",
     ] as const
   ).forEach((key) => {
     if (patch[key] !== undefined) {
@@ -814,13 +825,11 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     DEFAULT_APPEARANCE;
 
   const language = useMemo(
-    () =>
-      localLanguageOverride ||
-      managedThemeSettings.language ||
-      normalizeLanguage(detectClientLanguage()) ||
-      "en",
+    () => localLanguageOverride || managedThemeSettings.language || "zh-CN",
     [localLanguageOverride, managedThemeSettings.language]
   );
+  const nodeCityMap = managedThemeSettings.nodeCityMap ?? "";
+  const homeLatencyMap = managedThemeSettings.homeLatencyMap ?? "";
 
   const clearLocalOverrides = useCallback(() => {
     setLocalThemeOverrides({});
@@ -1284,6 +1293,8 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       nodeViewMode,
       appearance,
       language,
+      nodeCityMap,
+      homeLatencyMap,
       setColorTheme,
       setCardLayout,
       setCardDesign,
@@ -1313,6 +1324,8 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       isThemeLoaded,
       isLoggedIn,
       language,
+      nodeCityMap,
+      homeLatencyMap,
       managedThemeSettings,
       nodeViewMode,
       setBackgroundBlurEnabled,

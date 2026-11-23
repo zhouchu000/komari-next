@@ -440,7 +440,15 @@ const NodeTable: React.FC<NodeTableProps> = ({ nodes, liveData }) => {
                   </TableCell>
                   <TableCell className="py-2 px-2 text-center">
                     <div className="space-y-1.5">
-                      {node.traffic_limit > 0 ? (
+                      {node.traffic_quota === "unknown" ? (
+                        <div className="text-[10px] text-muted-foreground">
+                          {t("common.traffic_unknown", { defaultValue: "未知配额" })}
+                        </div>
+                      ) : node.traffic_quota === "unlimited" ? (
+                        <div className="font-mono text-xs tabular-nums text-muted-foreground whitespace-nowrap">
+                          {formatBytes(trafficUsed)} / ∞
+                        </div>
+                      ) : node.traffic_limit > 0 ? (
                         <div className="mx-auto w-full max-w-[184px] space-y-1">
                           <div className="flex items-center justify-between gap-2 text-[10px] leading-none text-muted-foreground">
                             <span className="shrink-0">{trafficLimitType.toUpperCase()} Limit</span>

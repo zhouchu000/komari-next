@@ -9,11 +9,14 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 
 import type { NodeBasicInfo } from "@/contexts/NodeListContext";
+import { useNodeList } from "@/contexts/NodeListContext";
 import type { LiveData, Record } from "../types/LiveData";
 import { getOSImage, getOSName } from "@/utils";
 import { formatBytes } from "@/utils/unitHelper";
 import { useTheme } from "@/contexts/ThemeContext";
-import { type PingHistoryPoint, type PingStats, usePingStats } from "@/hooks/usePingStats";
+import { usePingStats } from "@/hooks/usePingStats";
+import { describeExpiry } from "@/lib/expiryDisplay";
+import { PingTargetList } from "@/components/PingTargetList";
 
 import Flag from "./Flag";
 import PriceTags from "./PriceTags";
@@ -83,154 +86,6 @@ export function formatTrafficPercentage(value: number): string {
   return "<0.01%";
 }
 
-type QualityTone = "good" | "warn" | "bad";
-
-const PING_HISTORY_PLACEHOLDER_POINTS: PingHistoryPoint[] = Array.from(
-  { length: 28 },
-  (_, index) => ({
-    time: `placeholder-${index}`,
-    latency: null,
-    loss: null,
-  })
-);
-
-const qualityToneStyles: {
-  [tone in QualityTone]: { bar: string };
-} = {
-  good: {
-    bar: "bg-emerald-500",
-  },
-  warn: {
-    bar: "bg-amber-500",
-  },
-  bad: {
-    bar: "bg-rose-500",
-  },
-};
-
-function getLatencyTone(latency: number): QualityTone {
-  if (latency <= 80) return "good";
-  if (latency <= 180) return "warn";
-  return "bad";
-}
-
-function getLossTone(loss: number): QualityTone {
-  if (loss <= 1) return "good";
-  if (loss <= 5) return "warn";
-  return "bad";
-}
-
-function formatHistoryTime(time: string) {
-  const date = new Date(time);
-  if (Number.isNaN(date.getTime())) {
-    return "";
-  }
-
-  return date.toLocaleString([], {
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
-function PingHistoryStrip({
-  label,
-  value,
-  points,
-  metric,
-  isLoaded,
-}: {
-  label: string;
-  value: string;
-  points: PingHistoryPoint[];
-  metric: "latency" | "loss";
-  isLoaded: boolean;
-}) {
-  return (
-    <div className="min-w-0 rounded-md border border-border/45 bg-background/45 px-2 py-1.5">
-      <div className="mb-1 flex items-center justify-between gap-2 text-[10px] leading-none">
-        <span className="truncate text-muted-foreground">{label}</span>
-        <span className="shrink-0 font-mono font-semibold text-foreground/80">{value}</span>
-      </div>
-      <div className="flex h-5 gap-0.5">
-        {points.filter(p => p.latency !== null || !isLoaded).map((point, index) => {
-          const metricValue = point[metric];
-          const tone =
-            metricValue === null
-              ? null
-              : metric === "latency"
-                ? getLatencyTone(metricValue)
-                : getLossTone(metricValue);
-          const blockClassName = tone
-            ? qualityToneStyles[tone].bar
-            : "bg-muted-foreground/18";
-          const titleValue =
-            metricValue === null
-              ? "No data"
-              : metric === "latency"
-                ? `${Math.round(metricValue)} ms`
-                : `${metricValue.toFixed(1)}%`;
-
-          return (
-            <span
-              key={`${point.time}-${index}`}
-              className={`flex-1 min-w-[2px] rounded-[2px] ${blockClassName}`}
-              title={`${formatHistoryTime(point.time)} ${titleValue}`}
-            />
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function PingQualityBars({ pingStats, t }: { pingStats: PingStats; t: TFunction }) {
-  const historyPoints = pingStats.hasData && pingStats.history.length > 0
-    ? pingStats.history
-    : PING_HISTORY_PLACEHOLDER_POINTS;
-  const statusText = pingStats.hasData
-    ? `${pingStats.avgVolatility.toFixed(1)} ${t("chart.volatility")}`
-    : pingStats.isLoaded
-      ? t("nodeCard.noPingData")
-      : "--";
-  const latencyValue = pingStats.hasData
-    ? `${Math.round(pingStats.avgLatency)} ms`
-    : "-- ms";
-  const lossValue = pingStats.hasData
-    ? `${pingStats.avgLoss.toFixed(1)}%`
-    : "--%";
-
-  return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-muted-foreground">{t("nodeCard.pingStats")}</span>
-        <span className="font-mono text-[11px] text-muted-foreground">
-          {statusText}
-        </span>
-      </div>
-      {(!pingStats.isLoaded || pingStats.hasData) && (
-        <div className="grid grid-cols-2 gap-2">
-          <PingHistoryStrip
-            label={t("nodeCard.latency", { defaultValue: "Latency" })}
-            value={latencyValue}
-            points={historyPoints}
-            metric="latency"
-            isLoaded={pingStats.isLoaded}
-          />
-          <PingHistoryStrip
-            label={t("chart.lossRate", { defaultValue: "Loss" })}
-            value={lossValue}
-            points={historyPoints}
-            metric="loss"
-            isLoaded={pingStats.isLoaded}
-          />
-        </div>
-      )}
-    </div>
-  );
-}
-
 // --- Components ---
 
 interface NodeProps {
@@ -242,8 +97,13 @@ interface NodeProps {
 
 const Node = ({ basic, live, online, pingStatsEnabled = false }: NodeProps) => {
   const [t] = useTranslation();
-  const { guestDisplay, themeConfig } = useTheme();
-  const pingStats = usePingStats(basic.uuid, 24, pingStatsEnabled);
+  const { guestDisplay, themeConfig, homeLatencyMap } = useTheme();
+  const { nodeList } = useNodeList();
+  const serverNames = React.useMemo(
+    () => new Map((nodeList ?? []).map((node) => [node.uuid.trim().toLowerCase(), node.name])),
+    [nodeList],
+  );
+  const pingStats = usePingStats(basic.uuid, 24, pingStatsEnabled, homeLatencyMap);
   const showPrice = guestDisplay.showPrice;
   const showExpiredAt = guestDisplay.showExpiredAt;
 
@@ -276,6 +136,7 @@ const Node = ({ basic, live, online, pingStatsEnabled = false }: NodeProps) => {
   const downloadSpeed = formatBytes(liveData.network.down);
   const totalUpload = formatBytes(liveData.network.totalUp);
   const totalDownload = formatBytes(liveData.network.totalDown);
+  const trafficQuota = basic.traffic_quota ?? "unknown";
   const trafficLimitType = basic.traffic_limit_type ?? "sum";
   const trafficUsed = getTrafficUsed(
     liveData.network.totalUp,
@@ -386,11 +247,12 @@ const Node = ({ basic, live, online, pingStatsEnabled = false }: NodeProps) => {
           /* ── Compact Layout ── */
           (() => {
             // 流量进度百分比（无限流量时为 0，格子始终显示）
-            const compactTrafficPct = basic.traffic_limit > 0 ? trafficPercentage : 0;
-            // 流量下方小字
-            const compactTrafficSub = basic.traffic_limit > 0
+            const compactTrafficPct = trafficQuota === "limited" ? trafficPercentage : 0;
+            const compactTrafficSub = trafficQuota === "limited"
               ? `${formatBytes(trafficUsed)} / ${formatBytes(basic.traffic_limit)}`
-              : `${formatBytes(liveData.network.totalUp + liveData.network.totalDown)} / ∞`;
+              : trafficQuota === "unlimited"
+                ? `${formatBytes(liveData.network.totalUp + liveData.network.totalDown)} / ∞`
+                : `${formatBytes(trafficUsed)} / ${t("common.traffic_unknown", { defaultValue: "未知配额" })}`;
 
             // 价格行文字（上行）：免费直接显示【免费】，付费显示价格/周期
             const compactPriceLine = (() => {
@@ -408,22 +270,20 @@ const Node = ({ basic, live, online, pingStatsEnabled = false }: NodeProps) => {
             })();
 
             // 剩余天数行文字（下行）
-            const compactExpiryLine = (() => {
-              if (!basic.expired_at) {
-                // 无截止时间：付费显示【长期】，免费也显示【长期】
-                return t("common.long_term", { defaultValue: "长期" });
-              }
-              const expiredDate = new Date(basic.expired_at);
-              const now = new Date();
-              const diffDays = Math.ceil((expiredDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-              if (diffDays <= 0) return t("common.expired", { defaultValue: "已到期" });
-              if (diffDays > 36500) return t("common.long_term", { defaultValue: "长期" });
-              return t("common.expired_in", { days: diffDays, defaultValue: `余${diffDays}天` });
-            })();
+            const compactExpiry = describeExpiry(basic.expired_at);
+            const compactExpiryLine = compactExpiry.kind === "unknown"
+              ? t("common.expiry_unknown", { defaultValue: "未填写" })
+              : compactExpiry.kind === "invalid"
+                ? t("common.expiry_invalid", { defaultValue: "未知" })
+                : compactExpiry.kind === "expired"
+                  ? t("common.expired", { defaultValue: "已到期" })
+                  : compactExpiry.kind === "long_term"
+                    ? t("common.long_term", { defaultValue: "长期" })
+                    : t("common.expired_in", { days: compactExpiry.days, defaultValue: `余${compactExpiry.days}天` });
 
             const hasCompactBillingInfo =
               (showPrice && basic.price !== undefined) ||
-              (showExpiredAt && !!basic.expired_at);
+              showExpiredAt;
 
             // CPU 负载小字：1min / 5min / 15min 平均负载
             const load1 = liveData.load?.load1 ?? 0;
@@ -493,11 +353,15 @@ const Node = ({ basic, live, online, pingStatsEnabled = false }: NodeProps) => {
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-muted-foreground text-xs">{t("nodeCard.totalTraffic", { defaultValue: "流量" })}</span>
                       <span className="font-mono text-xs text-foreground/80">
-                        {basic.traffic_limit > 0 ? `${formatTrafficPercentage(compactTrafficPct)}` : "∞"}
+                        {trafficQuota === "limited"
+                          ? formatTrafficPercentage(compactTrafficPct)
+                          : trafficQuota === "unlimited"
+                            ? "∞"
+                            : t("common.traffic_unknown", { defaultValue: "未知配额" })}
                       </span>
                     </div>
                     <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden">
-                      {basic.traffic_limit > 0 && (
+                      {trafficQuota === "limited" && (
                         <div
                           className="h-full bg-primary/70 rounded-full transition-transform duration-500 origin-left"
                           style={{ transform: `scaleX(${Math.min(compactTrafficPct, 100) / 100})` }}
@@ -552,41 +416,7 @@ const Node = ({ basic, live, online, pingStatsEnabled = false }: NodeProps) => {
                 <Separator className="opacity-30" />
 
                 {/* ── 延迟/丢包行，依 cardDesign 切换 ── */}
-                {themeConfig.cardDesign === "quality-bars" ? (
-                  <div className="grid grid-cols-2 gap-2">
-                    <PingHistoryStrip
-                      label={t("nodeCard.ping", { defaultValue: "延迟" })}
-                      value={pingStats.hasData ? `${Math.round(pingStats.avgLatency)} ms` : "-- ms"}
-                      points={pingStats.hasData && pingStats.history.length > 0 ? pingStats.history : PING_HISTORY_PLACEHOLDER_POINTS}
-                      metric="latency"
-                      isLoaded={pingStats.isLoaded}
-                    />
-                    <PingHistoryStrip
-                      label={t("chart.lossRate", { defaultValue: "丢包" })}
-                      value={pingStats.hasData ? `${pingStats.avgLoss.toFixed(1)}%` : "--%"}
-                      points={pingStats.hasData && pingStats.history.length > 0 ? pingStats.history : PING_HISTORY_PLACEHOLDER_POINTS}
-                      metric="loss"
-                      isLoaded={pingStats.isLoaded}
-                    />
-                  </div>
-                ) : (
-                  <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground text-xs">{t("nodeCard.pingStats")}</span>
-                    {pingStats.hasData ? (
-                      <div className="flex gap-3 font-mono text-xs text-muted-foreground">
-                        <span>{pingStats.avgLoss.toFixed(1)}% {t("chart.lossRate")}</span>
-                        <span>{pingStats.avgVolatility.toFixed(1)} {t("chart.volatility")}</span>
-                      </div>
-                    ) : !pingStats.isLoaded ? (
-                      <div className="flex gap-3 font-mono text-xs text-muted-foreground/70">
-                        <span>--% {t("chart.lossRate")}</span>
-                        <span>-- {t("chart.volatility")}</span>
-                      </div>
-                    ) : (
-                      <span className="text-xs text-muted-foreground/70 italic">{t("nodeCard.noPingData")}</span>
-                    )}
-                  </div>
-                )}
+                <PingTargetList pingStats={pingStats} t={t} serverNames={serverNames} />
 
               </div>
             );
@@ -660,30 +490,19 @@ const Node = ({ basic, live, online, pingStatsEnabled = false }: NodeProps) => {
 
           <Separator className="opacity-30" />
 
-          {/* Ping Statistics */}
-          {themeConfig.cardDesign === "quality-bars" ? (
-            <PingQualityBars pingStats={pingStats} t={t} />
-          ) : (
-            <div className="flex justify-between items-center">
-              <span className="text-muted-foreground">{t("nodeCard.pingStats")}</span>
-              {pingStats.hasData ? (
-                <div className="flex gap-3 font-mono text-xs text-muted-foreground">
-                  <span>{pingStats.avgLoss.toFixed(1)}% {t("chart.lossRate")}</span>
-                  <span>{pingStats.avgVolatility.toFixed(1)} {t("chart.volatility")}</span>
-                </div>
-              ) : !pingStats.isLoaded ? (
-                <div className="flex gap-3 font-mono text-xs text-muted-foreground/70">
-                  <span>--% {t("chart.lossRate")}</span>
-                  <span>-- {t("chart.volatility")}</span>
-                </div>
-              ) : (
-                <span className="text-xs text-muted-foreground/70 italic">{t("nodeCard.noPingData")}</span>
-              )}
+          <PingTargetList pingStats={pingStats} t={t} serverNames={serverNames} />
+
+          {trafficQuota === "unknown" && (
+            <div className="mt-2 text-[10px] text-muted-foreground">
+              {t("common.traffic_unknown", { defaultValue: "未知配额" })}
             </div>
           )}
-
-          {/* Traffic Limit Progress (if exists) */}
-          {basic.traffic_limit > 0 && (
+          {trafficQuota === "unlimited" && (
+            <div className="mt-2 text-[10px] font-mono text-muted-foreground">
+              {formatBytes(trafficUsed)} / ∞
+            </div>
+          )}
+          {trafficQuota === "limited" && (
             <div className="mt-2 pt-1">
                <div className="flex justify-between text-[10px] mb-1 text-muted-foreground">
                  <span>{trafficLimitType.toUpperCase()} Limit</span>
@@ -722,7 +541,7 @@ const Node = ({ basic, live, online, pingStatsEnabled = false }: NodeProps) => {
           </CardFooter>
         )
       ) : (
-        ((showPrice && basic.price) || (showExpiredAt && basic.price) || basic.ipv4 || basic.ipv6 || basic.tags) && (
+        ((showPrice && basic.price) || showExpiredAt || basic.ipv4 || basic.ipv6 || basic.tags) && (
           <CardFooter className={footerStyles[themeConfig.cardLayout] || footerStyles.classic}>
              <PriceTags
                 hidden={false}

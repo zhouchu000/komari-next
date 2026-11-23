@@ -445,6 +445,15 @@
   padding: 0.95rem 1rem;
 }
 
+.node-map-view__node-list {
+  display: flex;
+  max-height: 11rem;
+  flex-direction: column;
+  gap: 0.35rem;
+  overflow: auto;
+  padding: 0 1rem 0.9rem;
+}
+
 .node-map-view__hover-count-line {
   display: flex;
   align-items: center;

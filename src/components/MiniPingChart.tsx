@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/chart";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid } from "recharts";
 import { useTranslation } from "react-i18next";
-import { cutPeakValues, interpolateNullsLinear } from "@/utils/RecordHelper";
+import { cutPeakValues } from "@/utils/RecordHelper";
 import Tips from "./ui/tips";
 import { useRPC2Call } from "@/contexts/RPC2Context";
 import { fetchPingRecords, PING_RECORDS_AUTO_REFRESH_MS, type PingRecord, type PingTaskInfo } from "@/lib/pingRecords";
@@ -45,9 +45,9 @@ const MiniPingChart = ({
   const [tasks, setTasks] = useState<PingTaskInfo[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [hiddenLines, setHiddenLines] = useState<Record<string, boolean>>({});
   const [t] = useTranslation();
   const [cutPeak, setCutPeak] = useState(false);
+  const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
   const { call } = useRPC2Call();
   useEffect(() => {
     if (!uuid.trim()) {
@@ -112,7 +112,9 @@ const MiniPingChart = ({
     const grouped: Record<string, any> = {}; // key: anchor timestamp(ms)
     const anchors: number[] = [];
 
+    const activeTaskId = selectedTaskId ?? tasks[0]?.id ?? null;
     for (const rec of data) {
+      if (activeTaskId != null && rec.task_id !== activeTaskId) continue;
       const ts = new Date(rec.time).getTime();
       let anchor: number | null = null;
       // 线性扫描量通常较小（点数有限），后续如需优化可改为二分。
@@ -127,27 +129,19 @@ const MiniPingChart = ({
         grouped[use] = { time: new Date(use).toISOString() };
         if (anchor === null) anchors.push(use);
       }
-      grouped[use][rec.task_id] = rec.value < 0 ? null : rec.value; // 负值隐藏
+      grouped[use].latency = rec.value < 0 ? null : rec.value;
     }
 
     let rows = Object.values(grouped).sort(
       (a: any, b: any) => new Date(a.time).getTime() - new Date(b.time).getTime()
     );
 
-    if (cutPeak && tasks.length > 0) {
-      const taskKeys = tasks.map((t) => String(t.id));
-      rows = cutPeakValues(rows, taskKeys);
-    }
-
-    // 真实感插值（数据驱动）：
-    // 每条线以“中位采样间隔 * 倍数(默认6)”作为最大插值跨度，并钳制在 [2min, 30min]。
-    if (tasks.length > 0 && rows.length > 0) {
-      const keys = tasks.map((t) => String(t.id));
-      rows = interpolateNullsLinear(rows as any[], keys, { maxGapMultiplier: 6, minCapMs: 2 * 60_000, maxCapMs: 30 * 60_000 }) as any[];
+    if (cutPeak && rows.length > 0) {
+      rows = cutPeakValues(rows, ["latency"]);
     }
 
     return rows;
-  }, [remoteData, cutPeak, tasks]);
+  }, [remoteData, cutPeak, tasks, selectedTaskId]);
 
   const timeFormatter = (value: any, index: number) => {
     if (!chartData.length) return "";
@@ -188,9 +182,15 @@ const MiniPingChart = ({
         <div className="text-xs text-muted-foreground mb-2">{formattedDate}</div>
         <div className="grid gap-1">
           {payload.map((entry: any, index: number) => {
-            if (entry.value === null) return null;
-            const task = tasks.find(t => String(t.id) === entry.dataKey);
+            const task = tasks.find((item) => item.id === (selectedTaskId ?? tasks[0]?.id));
             if (!task) return null;
+            if (entry.value === null || entry.dataKey !== "latency") {
+              return (
+                <div key={index} className="text-xs text-muted-foreground">
+                  {task.name} · {t("nodeCard.pingUnavailable", { defaultValue: "不可用" })}
+                </div>
+              );
+            }
 
             const lossText = typeof task.loss === 'number' ? `${task.loss.toFixed(1)}%` : 'N/A';
             const volText = typeof task.p99_p50_ratio === 'number' ? task.p99_p50_ratio.toFixed(1) : 'N/A';
@@ -216,12 +216,7 @@ const MiniPingChart = ({
         </div>
       </div>
     );
-  }, [tasks, t]);
-
-  const handleLegendClick = useCallback((e: any) => {
-    const key = e.dataKey;
-    setHiddenLines((prev) => ({ ...prev, [key]: !prev[key] }));
-  }, []);
+  }, [tasks, t, selectedTaskId]);
 
   return (
     <Card
@@ -287,41 +282,37 @@ const MiniPingChart = ({
                 wrapperStyle={{ pointerEvents: "auto", zIndex: 20 }}
               />
               <ChartLegend
-                onClick={handleLegendClick}
                 content={
                   <ChartLegendContent className="flex-wrap justify-start gap-x-3 gap-y-2 text-xs" />
                 }
               />
-              {(() => {
-                const minInterval = Math.min(
-                  ...tasks
-                    .map((t) => t.interval || Infinity)
-                    .filter((v) => v !== undefined)
-                );
-                return tasks.map((task, idx) => {
-                  const interval = task.interval || minInterval;
-                  // 对于 interval 大于最小 interval 的任务，开启 connectNulls，
-                  // 这样它们不会因为其他任务的额外时间点被打断。
-                  const connect = interval > minInterval;
-                  return (
-                    <Line
-                      key={task.id}
-                      dataKey={String(task.id)}
-                      name={task.name}
-                      stroke={colors[idx % colors.length]}
-                      dot={false}
-                      isAnimationActive={false}
-                      strokeWidth={2}
-                      connectNulls={connect}
-                      type={cutPeak ? "basisOpen" : "linear"}
-                      hide={!!hiddenLines[task.id]}
-                    />
-                  );
-                });
-              })()}
+              <Line
+                dataKey="latency"
+                name={(tasks.find((task) => task.id === (selectedTaskId ?? tasks[0]?.id))?.name) || t("nodeCard.ping", { defaultValue: "延迟" })}
+                stroke={colors[0]}
+                dot={false}
+                isAnimationActive={false}
+                strokeWidth={2}
+                connectNulls={false}
+                type={cutPeak ? "basisOpen" : "linear"}
+              />
             </LineChart>
           </ChartContainer>
         )
+      )}
+      {tasks.length > 1 && (
+        <div className="flex flex-wrap gap-1">
+          {tasks.map((task) => (
+            <button
+              key={task.id}
+              type="button"
+              className={`rounded-full border px-2 py-0.5 text-[11px] ${(selectedTaskId ?? tasks[0]?.id) === task.id ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}
+              onClick={() => setSelectedTaskId(task.id)}
+            >
+              {task.name}
+            </button>
+          ))}
+        </div>
       )}
       <div className="flex items-center gap-2 pt-1" style={{ display: loading ? "none" : "flex" }}>
         <Switch id="cut-peak" checked={cutPeak} onCheckedChange={setCutPeak} />

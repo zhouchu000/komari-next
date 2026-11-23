@@ -290,7 +290,10 @@
     "update_available": "New version available",
     "updated_successfully": "Updated successfully",
     "weight": "Weight",
-    "map": "Map"
+    "map": "Map",
+    "expiry_unknown": "Not set",
+    "expiry_invalid": "Unknown",
+    "traffic_unknown": "Unknown quota"
   },
   "copy": "Copy",
   "copy_success": "Copied!",
@@ -395,7 +398,22 @@
     "totalTransfer": "Total Transfer",
     "totalUpload": "Total Upload",
     "uptime": "Uptime",
-    "virtualization": "Virtualization"
+    "virtualization": "Virtualization",
+    "directionServer": "Server → {{target}}",
+    "directionHome": "Home → {{target}}",
+    "pingUnavailable": "Unavailable",
+    "pingUnconfigured": "Not configured",
+    "pingUnknown": "Unknown",
+    "pingEmpty": "No latency data",
+    "homePerspective": "Home view",
+    "homePerspectiveUnconfigured": "Not configured",
+    "homeMeasurements": "Home measurements",
+    "homeSourceNote": "Samples from the home router stay separate per target and are not averaged.",
+    "serverDirectionNote": "Direction is server to target, not home to server.",
+    "protocol": "Protocol",
+    "protocolIcmp": "ICMP",
+    "protocolTcp": "TCP",
+    "protocolUnknown": "Unknown"
   },
   "nodes": {
     "empty": "No server data available",
@@ -860,7 +878,20 @@
     "viewDetails": "View details for {{name}}",
     "emptySelectionTitle": "No regions can be displayed right now",
     "emptySelectionDescription": "These nodes are still counted normally, but their region values do not yet match the map mapping.",
-    "regionUnknown": "Not set"
+    "regionUnknown": "Not set",
+    "cityTitle": "City distribution",
+    "cityCount": "{{count}} cities",
+    "unmappedNodes": "Unmapped nodes",
+    "configMissing": "City mapping is not configured. Country centers are not used instead.",
+    "cityPrecision": "City-level approximation. Nodes in the same city share one pin.",
+    "nodeList": "Nodes in this city",
+    "reason": {
+      "unconfigured": "Coordinates not configured",
+      "unknown": "Coordinates unknown",
+      "conflict": "Conflicting coordinates",
+      "do_not_pin": "Not pinned",
+      "invalid": "Invalid mapping"
+    }
   },
   "nodeDisplay": {
     "remainingValueCalculator": "Remaining Value Calculator",

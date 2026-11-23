@@ -12,7 +12,7 @@ import {
   ChartLegend,
 } from "@/components/ui/chart";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid } from "recharts";
-import { cutPeakValues, interpolateNullsLinear } from "@/utils/RecordHelper";
+import { cutPeakValues } from "@/utils/RecordHelper";
 import Tips from "@/components/ui/tips";
 import { Eye, EyeOff, MoreHorizontal } from "lucide-react";
 import { useRPC2Call } from "@/contexts/RPC2Context";
@@ -20,6 +20,8 @@ import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { fetchPingRecords, PING_RECORDS_AUTO_REFRESH_MS, type PingRecord, type PingTaskInfo } from "@/lib/pingRecords";
+import { buildNodePingReport, parseHomeLatencyMap, targetHeadline } from "@/lib/pingTargets";
+import { useTheme } from "@/contexts/ThemeContext";
 
 const colors = [
   "#F38181",
@@ -34,6 +36,7 @@ const colors = [
 
 const PingChart = ({ uuid }: { uuid: string }) => {
   const { t } = useTranslation();
+  const { homeLatencyMap } = useTheme();
   const { publicInfo } = usePublicInfo();
   const { call } = useRPC2Call();
   const max_record_preserve_time = publicInfo?.ping_record_preserve_time || 0;
@@ -104,6 +107,9 @@ const PingChart = ({ uuid }: { uuid: string }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [cutPeak, setCutPeak] = useState(false);
+  const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
+  const homeMap = useMemo(() => parseHomeLatencyMap(homeLatencyMap), [homeLatencyMap]);
+  const isHomeSource = Boolean(homeMap.sourceUuid && homeMap.sourceUuid === uuid.trim().toLowerCase());
 
   useEffect(() => {
     if (!view && initialView) {
@@ -182,7 +188,9 @@ const PingChart = ({ uuid }: { uuid: string }) => {
     );
     const grouped: Record<number, any> = {};
     const anchors: number[] = [];
+    const activeTaskId = selectedTaskId ?? tasks[0]?.id ?? null;
     for (const rec of data) {
+      if (activeTaskId != null && rec.task_id !== activeTaskId) continue;
       const ts = new Date(rec.time).getTime();
       let anchor: number | null = null;
       for (const a of anchors) {
@@ -196,7 +204,8 @@ const PingChart = ({ uuid }: { uuid: string }) => {
         grouped[use] = { time: new Date(use).toISOString() };
         if (anchor === null) anchors.push(use);
       }
-      grouped[use][rec.task_id] = rec.value < 0 ? null : rec.value;
+      grouped[use].latency = rec.value < 0 ? null : rec.value;
+      grouped[use].failed = rec.value < 0;
     }
     const merged = Object.values(grouped).sort(
       (a: any, b: any) =>
@@ -217,24 +226,26 @@ const PingChart = ({ uuid }: { uuid: string }) => {
     }
     const clipped = (merged as any[]).slice(startIdx);
     return clipped;
-  }, [remoteData, tasks, hours]);
+  }, [remoteData, tasks, hours, selectedTaskId]);
 
   const chartData = useMemo(() => {
     let full = midData;
     if (cutPeak && tasks.length > 0) {
-      const taskKeys = tasks.map((task) => String(task.id));
-      full = cutPeakValues(midData, taskKeys);
-    }
-    if (tasks.length > 0 && full.length > 0) {
-      const keys = tasks.map((t) => String(t.id));
-      full = interpolateNullsLinear(full, keys, {
-        maxGapMultiplier: 6,
-        minCapMs: 2 * 60_000,
-        maxCapMs: 30 * 60_000,
-      });
+      full = cutPeakValues(midData, ["latency"]);
     }
     return full;
   }, [midData, cutPeak, tasks]);
+
+  const pingReport = useMemo(
+    () => buildNodePingReport(
+      remoteData,
+      tasks,
+      isHomeSource ? "home" : "server",
+      isHomeSource ? homeMap.routes : [],
+    ),
+    [remoteData, tasks, isHomeSource, homeMap.routes],
+  );
+  const selectedTarget = pingReport.targets.find((target) => target.taskId === selectedTaskId) ?? pingReport.targets[0] ?? null;
 
   const timeFormatter = (value: any, index: number) => {
     if (!chartData.length) return "";
@@ -344,6 +355,28 @@ const PingChart = ({ uuid }: { uuid: string }) => {
             ))}
           </SegmentedControl>
         </div>
+        {pingReport.targets.length > 0 && (
+          <div className="mt-3 flex flex-wrap justify-center gap-2">
+            {pingReport.targets.map((target) => (
+              <Button
+                key={target.taskId}
+                type="button"
+                size="sm"
+                variant={selectedTarget?.taskId === target.taskId ? "default" : "outline"}
+                onClick={() => setSelectedTaskId(target.taskId)}
+              >
+                {isHomeSource
+                  ? t("nodeCard.directionHome", { target: target.name, defaultValue: "家宽 → {{target}}" })
+                  : t("nodeCard.directionServer", { target: target.name, defaultValue: "服务器 → {{target}}" })}
+              </Button>
+            ))}
+          </div>
+        )}
+        <p className="mt-2 text-center text-xs text-muted-foreground">
+          {isHomeSource
+            ? t("nodeCard.homeSourceNote", { defaultValue: "来自家庭路由的分目标样本，多个目标不会合并平均。" })
+            : t("nodeCard.serverDirectionNote", { defaultValue: "方向是服务器测到目标，不是家庭到服务器。历史图只画当前目标。" })}
+        </p>
       </div>
 
       {loading && (
@@ -491,9 +524,16 @@ const PingChart = ({ uuid }: { uuid: string }) => {
                   </div>
                   <div className="flex gap-2 text-sm text-muted-foreground">
                     <span>
-                      {task.value !== null
-                        ? `${Number(task.value).toFixed(0)} ms`
-                        : "-"}
+                      {(() => {
+                        const target = pingReport.targets.find((item) => item.taskId === task.id);
+                        if (!target) return t("nodeCard.pingUnknown", { defaultValue: "未知" });
+                        const headline = targetHeadline(target);
+                        if (typeof headline === "object") return `${Math.round(headline.ms)} ms`;
+                        if (headline === "unavailable") return t("nodeCard.pingUnavailable", { defaultValue: "不可用" });
+                        if (headline === "unconfigured") return t("nodeCard.pingUnconfigured", { defaultValue: "未配置" });
+                        if (headline === "unknown") return t("nodeCard.pingUnknown", { defaultValue: "未知" });
+                        return t("nodeCard.pingEmpty", { defaultValue: "无延迟数据" });
+                      })()}
                     </span>
                     <span>
                       {`${Number(task.loss).toFixed(1)}%${t("chart.lossRate")}`}
@@ -546,7 +586,7 @@ const PingChart = ({ uuid }: { uuid: string }) => {
               />
               <ChartTooltip
                 cursor={false}
-                formatter={(v: any) => `${Math.round(v)} ms`}
+                formatter={(v: any) => (v == null || Number.isNaN(Number(v)) ? t("nodeCard.pingUnavailable", { defaultValue: "不可用" }) : `${Math.round(Number(v))} ms`)}
                 content={
                   <ChartTooltipContent
                     labelFormatter={lableFormatter}
@@ -555,25 +595,19 @@ const PingChart = ({ uuid }: { uuid: string }) => {
                 }
               />
               <ChartLegend onClick={handleLegendClick} />
-              {(() => {
-                return tasks.map((task, idx) => {
-                  const connect = false;
-                  return (
-                    <Line
-                      key={task.id}
-                      dataKey={String(task.id)}
-                      name={task.name}
-                      stroke={colors[idx % colors.length]}
-                      dot={false}
-                      isAnimationActive={false}
-                      strokeWidth={2}
-                      connectNulls={connect}
-                      type={cutPeak ? "basis" : "linear"}
-                      hide={!!hiddenLines[String(task.id)]}
-                    />
-                  );
-                });
-              })()}
+              {selectedTarget && (
+                <Line
+                  key={selectedTarget.taskId}
+                  dataKey="latency"
+                  name={selectedTarget.name}
+                  stroke={colors[0]}
+                  dot={false}
+                  isAnimationActive={false}
+                  strokeWidth={2}
+                  connectNulls={false}
+                  type={cutPeak ? "basis" : "linear"}
+                />
+              )}
             </LineChart>
           </ChartContainer>
         )}

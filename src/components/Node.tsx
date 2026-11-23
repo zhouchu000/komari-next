@@ -16,6 +16,7 @@ import { formatBytes } from "@/utils/unitHelper";
 import { useTheme } from "@/contexts/ThemeContext";
 import { usePingStats } from "@/hooks/usePingStats";
 import { describeExpiry } from "@/lib/expiryDisplay";
+import { describeTrafficQuota, presentTrafficQuota } from "@/lib/trafficQuota";
 import { PingTargetList } from "@/components/PingTargetList";
 
 import Flag from "./Flag";
@@ -136,19 +137,21 @@ const Node = ({ basic, live, online, pingStatsEnabled = false }: NodeProps) => {
   const downloadSpeed = formatBytes(liveData.network.down);
   const totalUpload = formatBytes(liveData.network.totalUp);
   const totalDownload = formatBytes(liveData.network.totalDown);
-  const trafficQuota = basic.traffic_quota ?? "unknown";
-  const trafficNote = basic.traffic_note || t("common.traffic_bandwidth", { defaultValue: "按带宽不计流量" });
+  const trafficPresentation = presentTrafficQuota({
+    state: basic.traffic_quota ?? "unknown",
+    bytes: basic.traffic_limit,
+    note: basic.traffic_note,
+  });
   const trafficLimitType = basic.traffic_limit_type ?? "sum";
   const trafficUsed = getTrafficUsed(
     liveData.network.totalUp,
     liveData.network.totalDown,
     trafficLimitType
   );
-  const trafficPercentage = getTrafficPercentage(
-    liveData.network.totalUp,
-    liveData.network.totalDown,
-    basic.traffic_limit,
-    trafficLimitType
+  const quotaCopy = describeTrafficQuota(
+    trafficPresentation,
+    trafficUsed,
+    t("common.traffic_unknown", { defaultValue: "未知配额" }),
   );
 
   // Layout-specific styles
@@ -248,14 +251,8 @@ const Node = ({ basic, live, online, pingStatsEnabled = false }: NodeProps) => {
           /* ── Compact Layout ── */
           (() => {
             // 流量进度百分比（无限流量时为 0，格子始终显示）
-            const compactTrafficPct = trafficQuota === "limited" ? trafficPercentage : 0;
-            const compactTrafficSub = trafficQuota === "limited"
-              ? `${formatBytes(trafficUsed)} / ${formatBytes(basic.traffic_limit)}`
-              : trafficQuota === "unlimited"
-                ? `${formatBytes(liveData.network.totalUp + liveData.network.totalDown)} / ∞`
-                : trafficQuota === "bandwidth"
-                  ? trafficNote
-                  : `${formatBytes(trafficUsed)} / ${t("common.traffic_unknown", { defaultValue: "未知配额" })}`;
+            const compactTrafficPct = quotaCopy.bar == null ? 0 : quotaCopy.bar * 100;
+            const compactTrafficSub = quotaCopy.text;
 
             // 价格行文字（上行）：免费直接显示【免费】，付费显示价格/周期
             const compactPriceLine = (() => {
@@ -356,17 +353,15 @@ const Node = ({ basic, live, online, pingStatsEnabled = false }: NodeProps) => {
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-muted-foreground text-xs">{t("nodeCard.totalTraffic", { defaultValue: "流量" })}</span>
                       <span className="font-mono text-xs text-foreground/80">
-                        {trafficQuota === "limited"
+                        {quotaCopy.bar != null
                           ? formatTrafficPercentage(compactTrafficPct)
-                          : trafficQuota === "unlimited"
+                          : trafficPresentation.kind === "unlimited"
                             ? "∞"
-                            : trafficQuota === "bandwidth"
-                              ? trafficNote
-                              : t("common.traffic_unknown", { defaultValue: "未知配额" })}
+                            : quotaCopy.text}
                       </span>
                     </div>
                     <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden">
-                      {trafficQuota === "limited" && (
+                      {quotaCopy.bar != null && (
                         <div
                           className="h-full bg-primary/70 rounded-full transition-transform duration-500 origin-left"
                           style={{ transform: `scaleX(${Math.min(compactTrafficPct, 100) / 100})` }}
@@ -497,37 +492,32 @@ const Node = ({ basic, live, online, pingStatsEnabled = false }: NodeProps) => {
 
           <PingTargetList pingStats={pingStats} t={t} serverNames={serverNames} />
 
-          {trafficQuota === "unknown" && (
+          {quotaCopy.bar == null && trafficPresentation.kind !== "unlimited" && (
             <div className="mt-2 text-[10px] text-muted-foreground">
-              {t("common.traffic_unknown", { defaultValue: "未知配额" })}
+              {quotaCopy.text}
             </div>
           )}
-          {trafficQuota === "bandwidth" && (
-            <div className="mt-2 text-[10px] text-muted-foreground">
-              {trafficNote}
-            </div>
-          )}
-          {trafficQuota === "unlimited" && (
+          {trafficPresentation.kind === "unlimited" && (
             <div className="mt-2 text-[10px] font-mono text-muted-foreground">
-              {formatBytes(trafficUsed)} / ∞
+              {quotaCopy.text}
             </div>
           )}
-          {trafficQuota === "limited" && (
+          {quotaCopy.bar != null && (
             <div className="mt-2 pt-1">
                <div className="flex justify-between text-[10px] mb-1 text-muted-foreground">
                  <span>{trafficLimitType.toUpperCase()} Limit</span>
                  <span className="font-mono">
-                   {formatBytes(trafficUsed)} / {formatBytes(basic.traffic_limit)}
+                   {quotaCopy.text}
                  </span>
                </div>
                <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden">
                  <div 
                    className="h-full bg-primary/70 rounded-full transition-transform duration-500 origin-left"
-                   style={{ transform: `scaleX(${Math.min(trafficPercentage, 100) / 100})` }}
+                   style={{ transform: `scaleX(${quotaCopy.bar ?? 0})` }}
                  />
                </div>
                <div className="mt-1 flex justify-end text-[10px] font-mono text-muted-foreground">
-                 <span>{formatTrafficPercentage(trafficPercentage)}</span>
+                 <span>{formatTrafficPercentage((quotaCopy.bar ?? 0) * 100)}</span>
                </div>
             </div>
           )}

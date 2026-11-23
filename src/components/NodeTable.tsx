@@ -17,9 +17,9 @@ import type { LiveData, Record } from "../types/LiveData";
 import {
   formatTrafficPercentage,
   formatUptime,
-  getTrafficPercentage,
   getTrafficUsed,
 } from "./Node";
+import { describeTrafficQuota, presentTrafficQuota } from "@/lib/trafficQuota";
 import { formatBytes } from "@/utils/unitHelper";
 import AdaptiveChart from "./AdaptiveChart";
 import Flag from "./Flag";
@@ -286,21 +286,23 @@ const NodeTable: React.FC<NodeTableProps> = ({ nodes, liveData }) => {
             const diskUsagePercent = node.disk_total
               ? (nodeData.disk.used / node.disk_total) * 100
               : 0;
+            const trafficPresentation = presentTrafficQuota({
+              state: node.traffic_quota ?? "unknown",
+              bytes: node.traffic_limit,
+              note: node.traffic_note,
+            });
             const trafficLimitType = node.traffic_limit_type ?? "sum";
             const trafficUsed = getTrafficUsed(
               nodeData.network.totalUp,
               nodeData.network.totalDown,
               trafficLimitType
             );
-            const trafficPercentage = getTrafficPercentage(
-              nodeData.network.totalUp,
-              nodeData.network.totalDown,
-              node.traffic_limit,
-              trafficLimitType
+            const quotaCopy = describeTrafficQuota(
+              trafficPresentation,
+              trafficUsed,
+              t("common.traffic_unknown", { defaultValue: "未知配额" }),
             );
-            const trafficBarWidth = Number.isFinite(trafficPercentage)
-              ? Math.min(Math.max(trafficPercentage, 0), 100)
-              : 0;
+            const trafficBarWidth = quotaCopy.bar == null ? 0 : quotaCopy.bar * 100;
 
             return (
               <React.Fragment key={node.uuid}>
@@ -440,24 +442,12 @@ const NodeTable: React.FC<NodeTableProps> = ({ nodes, liveData }) => {
                   </TableCell>
                   <TableCell className="py-2 px-2 text-center">
                     <div className="space-y-1.5">
-                      {node.traffic_quota === "unknown" ? (
-                        <div className="text-[10px] text-muted-foreground">
-                          {t("common.traffic_unknown", { defaultValue: "未知配额" })}
-                        </div>
-                      ) : node.traffic_quota === "bandwidth" ? (
-                        <div className="text-[10px] text-muted-foreground">
-                          {node.traffic_note || t("common.traffic_bandwidth", { defaultValue: "按带宽不计流量" })}
-                        </div>
-                      ) : node.traffic_quota === "unlimited" ? (
-                        <div className="font-mono text-xs tabular-nums text-muted-foreground whitespace-nowrap">
-                          {formatBytes(trafficUsed)} / ∞
-                        </div>
-                      ) : node.traffic_limit > 0 ? (
+                      {quotaCopy.bar != null ? (
                         <div className="mx-auto w-full max-w-[184px] space-y-1">
                           <div className="flex items-center justify-between gap-2 text-[10px] leading-none text-muted-foreground">
                             <span className="shrink-0">{trafficLimitType.toUpperCase()} Limit</span>
                             <span className="shrink-0 font-mono tabular-nums">
-                              {formatTrafficPercentage(trafficPercentage)}
+                              {formatTrafficPercentage(trafficBarWidth)}
                             </span>
                           </div>
                           <div className="h-1 w-full overflow-hidden rounded-full bg-secondary">
@@ -467,12 +457,12 @@ const NodeTable: React.FC<NodeTableProps> = ({ nodes, liveData }) => {
                             />
                           </div>
                           <div className="truncate text-[10px] leading-none text-muted-foreground">
-                            {formatBytes(trafficUsed)} / {formatBytes(node.traffic_limit)}
+                            {quotaCopy.text}
                           </div>
                         </div>
                       ) : (
-                        <div className="text-[10px] text-muted-foreground">
-                          {t("common.traffic_unknown", { defaultValue: "未知配额" })}
+                        <div className={trafficPresentation.kind === "unlimited" ? "font-mono text-xs tabular-nums text-muted-foreground whitespace-nowrap" : "text-[10px] text-muted-foreground"}>
+                          {quotaCopy.text}
                         </div>
                       )}
                     </div>

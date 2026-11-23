@@ -269,7 +269,7 @@
                     "en-US": "Traffic billing JSON"
                 },
                 "help": {
-                    "zh-CN": "只填写已核实的套餐说明。billing 为 bandwidth 时显示按带宽不计流量；billing 为 unlimited 时才显示不限额。留空时，0 和缺失显示未知配额，不会显示成无限。不要把私人 UUID 写进主题默认值。",
+                    "zh-CN": "只填写已核实的套餐说明。billing 为 bandwidth 时显示按带宽不计流量；billing 为 unlimited 时才显示不限额。留空时，0、缺失和「配额未公开」显示未知配额，长备注里的相同字样也不会显示成无限。不要把私人 UUID 写进主题默认值。",
                     "zh-TW": "只填寫已核實的套餐說明。billing 為 bandwidth 時顯示按頻寬不計流量；billing 為 unlimited 時才顯示不限額。留空時，0 和缺失顯示未知配額。",
                     "en-US": "Only list a verified plan statement. bandwidth shows billed by bandwidth, not traffic. unlimited is the only value that shows an unlimited quota. Empty, and a traffic_limit of 0 or missing, stays unknown and is not shown as unlimited."
                 },
@@ -612,7 +612,7 @@
                     "en-US": "Traffic billing JSON"
                 },
                 "help": {
-                    "zh-CN": "只填写已核实的套餐说明。billing 为 bandwidth 时显示按带宽不计流量；billing 为 unlimited 时才显示不限额。留空时，0 和缺失显示未知配额，不会显示成无限。不要把私人 UUID 写进主题默认值。",
+                    "zh-CN": "只填写已核实的套餐说明。billing 为 bandwidth 时显示按带宽不计流量；billing 为 unlimited 时才显示不限额。留空时，0、缺失和「配额未公开」显示未知配额，长备注里的相同字样也不会显示成无限。不要把私人 UUID 写进主题默认值。",
                     "zh-TW": "只填寫已核實的套餐說明。billing 為 bandwidth 時顯示按頻寬不計流量；billing 為 unlimited 時才顯示不限額。留空時，0 和缺失顯示未知配額。",
                     "en-US": "Only list a verified plan statement. bandwidth shows billed by bandwidth, not traffic. unlimited is the only value that shows an unlimited quota. Empty, and a traffic_limit of 0 or missing, stays unknown and is not shown as unlimited."
                 },
@@ -951,7 +951,7 @@
                     "en-US": "Traffic billing JSON"
                 },
                 "help": {
-                    "zh-CN": "只填写已核实的套餐说明。billing 为 bandwidth 时显示按带宽不计流量；billing 为 unlimited 时才显示不限额。留空时，0 和缺失显示未知配额，不会显示成无限。不要把私人 UUID 写进主题默认值。",
+                    "zh-CN": "只填写已核实的套餐说明。billing 为 bandwidth 时显示按带宽不计流量；billing 为 unlimited 时才显示不限额。留空时，0、缺失和「配额未公开」显示未知配额，长备注里的相同字样也不会显示成无限。不要把私人 UUID 写进主题默认值。",
                     "zh-TW": "只填寫已核實的套餐說明。billing 為 bandwidth 時顯示按頻寬不計流量；billing 為 unlimited 時才顯示不限額。留空時，0 和缺失顯示未知配額。",
                     "en-US": "Only list a verified plan statement. bandwidth shows billed by bandwidth, not traffic. unlimited is the only value that shows an unlimited quota. Empty, and a traffic_limit of 0 or missing, stays unknown and is not shown as unlimited."
                 },
@@ -1294,7 +1294,7 @@
                     "en-US": "Traffic billing JSON"
                 },
                 "help": {
-                    "zh-CN": "只填写已核实的套餐说明。billing 为 bandwidth 时显示按带宽不计流量；billing 为 unlimited 时才显示不限额。留空时，0 和缺失显示未知配额，不会显示成无限。不要把私人 UUID 写进主题默认值。",
+                    "zh-CN": "只填写已核实的套餐说明。billing 为 bandwidth 时显示按带宽不计流量；billing 为 unlimited 时才显示不限额。留空时，0、缺失和「配额未公开」显示未知配额，长备注里的相同字样也不会显示成无限。不要把私人 UUID 写进主题默认值。",
                     "zh-TW": "只填寫已核實的套餐說明。billing 為 bandwidth 時顯示按頻寬不計流量；billing 為 unlimited 時才顯示不限額。留空時，0 和缺失顯示未知配額。",
                     "en-US": "Only list a verified plan statement. bandwidth shows billed by bandwidth, not traffic. unlimited is the only value that shows an unlimited quota. Empty, and a traffic_limit of 0 or missing, stays unknown and is not shown as unlimited."
                 },
@@ -1637,7 +1637,7 @@
                     "en-US": "Traffic billing JSON"
                 },
                 "help": {
-                    "zh-CN": "只填写已核实的套餐说明。billing 为 bandwidth 时显示按带宽不计流量；billing 为 unlimited 时才显示不限额。留空时，0 和缺失显示未知配额，不会显示成无限。不要把私人 UUID 写进主题默认值。",
+                    "zh-CN": "只填写已核实的套餐说明。billing 为 bandwidth 时显示按带宽不计流量；billing 为 unlimited 时才显示不限额。留空时，0、缺失和「配额未公开」显示未知配额，长备注里的相同字样也不会显示成无限。不要把私人 UUID 写进主题默认值。",
                     "zh-TW": "只填寫已核實的套餐說明。billing 為 bandwidth 時顯示按頻寬不計流量；billing 為 unlimited 時才顯示不限額。留空時，0 和缺失顯示未知配額。",
                     "en-US": "Only list a verified plan statement. bandwidth shows billed by bandwidth, not traffic. unlimited is the only value that shows an unlimited quota. Empty, and a traffic_limit of 0 or missing, stays unknown and is not shown as unlimited."
                 },

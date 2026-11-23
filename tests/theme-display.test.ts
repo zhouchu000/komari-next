@@ -10,7 +10,7 @@ import {
   parseHomeLatencyMap,
   targetHeadline,
 } from "../src/lib/pingTargets.ts";
-import { classifyTrafficLimit, parseTrafficBilling, trafficStatementsForNode, BANDWIDTH_NOTE } from "../src/lib/trafficQuota.ts";
+import { classifyTrafficLimit, describeTrafficQuota, parseTrafficBilling, presentTrafficQuota, trafficStatementsForNode, BANDWIDTH_NOTE } from "../src/lib/trafficQuota.ts";
 
 const root = path.resolve(import.meta.dirname, "..");
 
@@ -26,20 +26,21 @@ test("missing expiry is unknown and does not claim long term", () => {
 });
 
 test("zero and missing quotas stay unknown unless a plan statement says otherwise", () => {
-  for (const value of [null, "", 0, "0", -1, Number.NaN, "not-a-quota"]) {
-    const quota = classifyTrafficLimit(value);
+  for (const value of [null, "", 0, "0", -1, Number.NaN, "not-a-quota", "配额未公开"]) {
+    const quota = classifyTrafficLimit(value, "配额未公开");
     assert.equal(quota.state, "unknown", String(value));
-    assert.equal(quota.note, null);
-    assert.equal(JSON.stringify(quota).includes("∞"), false);
+    assert.equal(presentTrafficQuota(quota).kind, "unknown");
+    assert.equal(JSON.stringify(presentTrafficQuota(quota)).includes("∞"), false);
   }
+  assert.equal(classifyTrafficLimit(0, "备注里提到不限流量但不是单独说明").state, "unknown");
   assert.equal(classifyTrafficLimit("unlimited").state, "unlimited");
   assert.equal(classifyTrafficLimit("不限流量").state, "unlimited");
-  assert.equal(classifyTrafficLimit(0, "不限流量").state, "unlimited");
+  assert.equal(presentTrafficQuota(classifyTrafficLimit(0, "不限流量")).kind, "unlimited");
   const bandwidth = classifyTrafficLimit(0, "按带宽不计流量");
   assert.equal(bandwidth.state, "bandwidth");
   assert.equal(bandwidth.note, "按带宽不计流量");
-  assert.equal(JSON.stringify(bandwidth).includes("∞"), false);
-  const stated = classifyTrafficLimit(0, trafficStatementsForNode([], {
+  assert.equal(presentTrafficQuota(bandwidth).kind, "bandwidth");
+  const stated = classifyTrafficLimit(0, trafficStatementsForNode(["配额未公开"], {
     uuid: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
     billing: "bandwidth",
     label: BANDWIDTH_NOTE,
@@ -49,6 +50,7 @@ test("zero and missing quotas stay unknown unless a plan statement says otherwis
   const twoGigabytes = classifyTrafficLimit(2, "按带宽不计流量");
   assert.equal(twoGigabytes.state, "limited");
   assert.equal(twoGigabytes.bytes, 2 * 1024 ** 3);
+  assert.equal(presentTrafficQuota(twoGigabytes).kind, "limited");
   assert.equal(classifyTrafficLimit("1GB").bytes, 1024 ** 3);
   const billing = parseTrafficBilling({
     nodes: [
@@ -58,6 +60,21 @@ test("zero and missing quotas stay unknown unless a plan statement says otherwis
   });
   assert.equal(billing.notes.length, 1);
   assert.equal(billing.notes[0].billing, "bandwidth");
+
+  const unpublished = describeTrafficQuota(presentTrafficQuota(classifyTrafficLimit(0, "配额未公开")), 1.98 * 1024 ** 3);
+  assert.equal(unpublished.text, "未知配额");
+  assert.equal(unpublished.bar, null);
+  assert.equal(unpublished.text.includes("∞"), false);
+  const missing = describeTrafficQuota(presentTrafficQuota(classifyTrafficLimit(null)), 1016.7 * 1024 ** 2);
+  assert.equal(missing.text, "未知配额");
+  assert.equal(missing.bar, null);
+  const billed = describeTrafficQuota(presentTrafficQuota(stated), 5 * 1024 ** 3);
+  assert.equal(billed.text, "按带宽不计流量");
+  assert.equal(billed.bar, null);
+  const finite = describeTrafficQuota(presentTrafficQuota(twoGigabytes), 1.2 * 1024 ** 3);
+  assert.equal(finite.text.includes("∞"), false);
+  assert.equal(finite.text.endsWith("2.00 GB"), true);
+  assert.ok(finite.bar != null && finite.bar > 0 && finite.bar < 1);
 });
 
 test("latency stays per target and failures are not zero milliseconds", () => {
@@ -85,6 +102,27 @@ test("latency stays per target and failures are not zero milliseconds", () => {
   assert.equal(byId.get(3)?.successAverageMs, null);
   assert.deepEqual(targetHeadline(byId.get(4)!), { ms: 0 });
   assert.equal(byId.get(2)?.history.every((point) => point.latency === null || point.latency === 200), true);
+
+  const unbound = buildNodePingReport([
+    { client: "node", task_id: 1, time: "2026-01-01T00:00:00Z", value: -1 },
+    { client: "node", task_id: 1, time: "2026-01-01T00:01:00Z", value: -1 },
+    { client: "node", task_id: 2, time: "2026-01-01T00:02:00Z", value: 6 },
+  ], [
+    { id: 1, name: "百度", type: "tcp", loss: 100 },
+  ], "server");
+  assert.deepEqual(unbound.targets.map((target) => target.taskId), [1]);
+  assert.equal(targetHeadline(unbound.targets[0]), "unavailable");
+  assert.equal(unbound.targets[0].latestLatencyMs, null);
+  assert.equal(unbound.targets.some((target) => target.name.includes("任务 2")), false);
+
+  const configured = buildNodePingReport([
+    { client: "router", task_id: 11, time: "2026-01-01T00:00:00Z", value: 18 },
+  ], [], "home", [
+    { taskId: 11, serverUuid: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", protocol: "tcp", label: "已配置目标" },
+  ]);
+  assert.equal(configured.targets.length, 1);
+  assert.equal(configured.targets[0].name, "已配置目标");
+  assert.deepEqual(targetHeadline(configured.targets[0]), { ms: 18 });
 });
 
 test("home perspectives need an explicit route and do not borrow other samples", () => {

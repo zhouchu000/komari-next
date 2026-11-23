@@ -323,10 +323,9 @@ export function buildNodePingReport(
   const safeRecords = Array.isArray(records) ? records : [];
   const safeTasks = Array.isArray(tasks) ? tasks : [];
   const taskById = indexTasks(safeTasks);
+  // getRecords already applies AppliesToClient, so an unbound task is absent
+  // here. Historical samples for that task stay in records and are not targets.
   const ids = new Set<number>(taskById.keys());
-  for (const record of safeRecords) {
-    if (typeof record?.task_id === "number") ids.add(record.task_id);
-  }
   const routeByTask = new Map<number, HomeLatencyRoute>();
   for (const route of routes) {
     if (!routeByTask.has(route.taskId)) routeByTask.set(route.taskId, route);

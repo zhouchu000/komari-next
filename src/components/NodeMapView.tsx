@@ -1,19 +1,17 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { CSSProperties, PointerEvent } from "react";
-import { geoGraticule10, geoNaturalEarth1, geoPath } from "d3-geo";
+import type { CSSProperties } from "react";
 import { MapPinned } from "lucide-react";
-import { feature } from "topojson-client";
 import { useTranslation } from "react-i18next";
 
 import type { NodeBasicInfo } from "@/contexts/NodeListContext";
 import type { LiveData } from "@/types/LiveData";
-import worldCountries50m from "@/data/world-countries-50m.json";
 import { buildCityMapView, type CityMapGroup, type CityPinReason } from "@/lib/nodeCityMap";
 import { useTheme } from "@/contexts/ThemeContext";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CityGlobe, type GlobeCity } from "@/components/CityGlobe";
 import Flag from "@/components/Flag";
 import SpaLink from "@/components/SpaLink";
 
@@ -36,11 +34,6 @@ type HoveredCity = {
   vertical: "above" | "below";
 };
 
-const SVG_WIDTH = 1000;
-const SVG_HEIGHT = 560;
-const MAP_HORIZONTAL_PADDING = 28;
-const MAP_TOP_PADDING = 42;
-const MAP_BOTTOM_INSET = 42;
 const HOVER_CARD_GAP = 12;
 const HOVER_CARD_MAX_WIDTH = 320;
 const HOVER_CARD_FALLBACK_HEIGHT = 180;
@@ -94,44 +87,21 @@ export function NodeMapView({ nodes, liveData, mapOnly = false, cityMapConfig, i
   const selectedGroup = summary.groups.find((group) => group.key === selectedKey) ?? hoverGroup;
   const hoverPosition = hoveredCity ? pendingHoverPositionRef.current ?? hoveredCity : null;
 
-  const projectedMap = useMemo(() => {
-    const countriesGeo = feature(
-      worldCountries50m as never,
-      (worldCountries50m as unknown as { objects: { countries: never } }).objects.countries,
-    ) as unknown as { features: Array<{ id?: string; properties?: { name?: string } }> };
-    const projection = geoNaturalEarth1().fitExtent(
-      [
-        [MAP_HORIZONTAL_PADDING, MAP_TOP_PADDING],
-        [SVG_WIDTH - MAP_HORIZONTAL_PADDING, SVG_HEIGHT - MAP_BOTTOM_INSET],
-      ],
-      countriesGeo as never,
-    );
-    const pathGenerator = geoPath(projection);
-    const countries = countriesGeo.features
-      .map((country) => ({
-        name: country.properties?.name ?? String(country.id ?? "unknown"),
-        pathData: pathGenerator(country as never) ?? "",
-      }))
-      .filter((country) => country.pathData);
-    const cities = summary.groups.flatMap((group) => {
-      const projected = projection([group.longitude, group.latitude]);
-      if (!projected || !Number.isFinite(projected[0]) || !Number.isFinite(projected[1])) return [];
-      return [{ group, x: projected[0], y: projected[1] }];
-    });
-    return {
-      spherePath: pathGenerator({ type: "Sphere" }) ?? "",
-      graticulePath: pathGenerator(geoGraticule10()) ?? "",
-      countries,
-      cities,
-    };
-  }, [summary.groups]);
+  const globeCities = useMemo<GlobeCity[]>(() => summary.groups.map((group) => ({
+    key: group.key,
+    label: group.label,
+    longitude: group.longitude,
+    latitude: group.latitude,
+    total: group.total,
+    status: group.status,
+  })), [summary.groups]);
 
-  const getHoverPosition = useCallback((event: PointerEvent<SVGElement>) => {
+  const getHoverPosition = useCallback((point: { x: number; y: number }) => {
     const surfaceRect = mapSurfaceRef.current?.getBoundingClientRect();
     const boundsWidth = surfaceRect?.width ?? window.innerWidth;
     const boundsHeight = surfaceRect?.height ?? window.innerHeight;
-    const x = surfaceRect ? event.clientX - surfaceRect.left : event.clientX;
-    const y = surfaceRect ? event.clientY - surfaceRect.top : event.clientY;
+    const x = point.x;
+    const y = point.y;
     const hoverCard = hoverCardRef.current;
     const cardWidth = hoverCard?.offsetWidth ?? Math.min(HOVER_CARD_MAX_WIDTH, Math.max(0, boundsWidth - HOVER_CARD_EDGE_PADDING * 2));
     const cardHeight = hoverCard?.offsetHeight ?? HOVER_CARD_FALLBACK_HEIGHT;
@@ -166,12 +136,6 @@ export function NodeMapView({ nodes, liveData, mapOnly = false, cityMapConfig, i
     });
   }, [applyHoverPosition]);
 
-  const updateHoveredCity = useCallback((event: PointerEvent<SVGElement>, group: CityMapGroup) => {
-    const position = getHoverPosition(event);
-    setHoveredCity({ cityKey: group.key, ...position });
-    queueHoverPosition(position);
-  }, [getHoverPosition, queueHoverPosition]);
-
   const clearHoveredCity = useCallback(() => {
     setHoveredCity(null);
     pendingHoverPositionRef.current = null;
@@ -180,6 +144,16 @@ export function NodeMapView({ nodes, liveData, mapOnly = false, cityMapConfig, i
       hoverFrameRef.current = null;
     }
   }, []);
+
+  const updateHoveredCity = useCallback((cityKey: string | null, point: { x: number; y: number } | null) => {
+    if (!cityKey || !point) {
+      clearHoveredCity();
+      return;
+    }
+    const position = getHoverPosition(point);
+    setHoveredCity({ cityKey, ...position });
+    queueHoverPosition(position);
+  }, [clearHoveredCity, getHoverPosition, queueHoverPosition]);
 
   useEffect(() => () => {
     if (hoverFrameRef.current !== null) window.cancelAnimationFrame(hoverFrameRef.current);
@@ -226,41 +200,12 @@ export function NodeMapView({ nodes, liveData, mapOnly = false, cityMapConfig, i
       <CardContent className={mapOnly ? "p-0" : "p-5 lg:p-6"}>
         <div className={mapOnly ? "node-map-view__layout node-map-view__layout--map-only" : "node-map-view__layout"}>
           <div ref={mapSurfaceRef} className="node-map-view__surface">
-            <svg viewBox={`0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`} className="node-map-view__svg" role="img" aria-label={t("mapView.ariaLabel", { defaultValue: "城市级节点分布地图" })}>
-              <path d={projectedMap.spherePath} className="node-map-view__ocean" />
-              <path d={projectedMap.graticulePath} className="node-map-view__graticule" />
-              <g className="node-map-view__country-layer">
-                {projectedMap.countries.map((country) => (
-                  <path key={country.name} d={country.pathData} className="node-map-view__country" />
-                ))}
-              </g>
-              <g className="node-map-view__marker-layer">
-                {projectedMap.cities.map(({ group, x, y }) => {
-                  const isSelected = hoveredCity?.cityKey === group.key || selectedKey === group.key;
-                  return (
-                    <g
-                      key={group.key}
-                      className={`node-map-view__marker status-${group.status}${isSelected ? " is-selected" : ""}`}
-                      role="button"
-                      tabIndex={0}
-                      aria-label={`${group.label} ${group.total}`}
-                      onPointerEnter={(event) => updateHoveredCity(event, group)}
-                      onPointerMove={(event) => queueHoverPosition(getHoverPosition(event))}
-                      onPointerLeave={clearHoveredCity}
-                      onClick={() => setSelectedKey((current) => current === group.key ? null : group.key)}
-                    >
-                      <circle cx={x} cy={y} r="9" className="node-map-view__marker-halo" />
-                      <circle cx={x} cy={y} r="4.2" className="node-map-view__marker-dot" />
-                      {group.total > 1 && (
-                        <text x={x + 8} y={y - 8} className="fill-current text-[11px] font-semibold">
-                          {group.total}
-                        </text>
-                      )}
-                    </g>
-                  );
-                })}
-              </g>
-            </svg>
+            <CityGlobe
+              cities={globeCities}
+              selectedKey={selectedKey}
+              onSelect={setSelectedKey}
+              onHover={updateHoveredCity}
+            />
             <div className="node-map-view__legend node-map-view__legend--inset">
               <div className="node-map-view__legend-card node-map-view__legend-card--status">
                 <div className="text-[11px] leading-snug text-muted-foreground">
@@ -306,7 +251,7 @@ export function NodeMapView({ nodes, liveData, mapOnly = false, cityMapConfig, i
                     <div className="min-w-0 space-y-1">
                       <h3 className="truncate text-lg font-semibold tracking-tight text-foreground">{hoverGroup.label}</h3>
                       <div className="text-xs text-muted-foreground">
-                        {hoverGroup.total} {t("mapView.stats.nodes", { defaultValue: "节点" })} · {statusText(t, hoverGroup.status)}
+                        {t("mapView.servers", { count: hoverGroup.total, defaultValue: "{{count}} 台节点" })} · {statusText(t, hoverGroup.status)}
                       </div>
                     </div>
                   </div>

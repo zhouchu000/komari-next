@@ -1,4 +1,4 @@
-import { stringToBytes } from "../utils/unitHelper";
+import { formatBytes, stringToBytes } from "../utils/unitHelper";
 
 export type TrafficQuotaState = "limited" | "unlimited" | "unknown" | "bandwidth";
 
@@ -19,9 +19,8 @@ export interface TrafficBillingMap {
   error: string | null;
 }
 
-const UNLIMITED_EXACT = /^(unlimited|infinite|infinity|∞|无限|無限|不限|不限额|不限額)$/i;
-const UNLIMITED_PHRASE = /(不限流量|流量不限|无限流量|無限流量|流量无限|流量無限|不限额|不限額|\bunlimited\b|\binfinite\b|\binfinity\b)/i;
-const BANDWIDTH_PHRASE = /(按带宽|按頻寬|带宽计费|頻寬計費|不计流量|不計流量|不按流量|不按流量計費)/i;
+const UNLIMITED_EXACT = /^(unlimited|infinite|infinity|∞|无限|無限|不限|不限额|不限額|不限流量|流量不限|无限流量|無限流量|流量无限|流量無限)$/i;
+const BANDWIDTH_EXACT = /^(按带宽不计流量|按頻寬不計流量|按带宽计费|按頻寬計費|带宽计费|頻寬計費)$/;
 const QUANTITY = /^[\d\s.,*+eE-]+(?:\s*[a-zA-Z]+)?$/;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -54,9 +53,10 @@ function asText(value: unknown): string {
 }
 
 function statementKind(text: string): "bandwidth" | "unlimited" | null {
-  if (!text) return null;
-  if (BANDWIDTH_PHRASE.test(text)) return "bandwidth";
-  if (UNLIMITED_EXACT.test(text) || UNLIMITED_PHRASE.test(text)) return "unlimited";
+  const trimmed = text.trim();
+  if (!trimmed) return null;
+  if (trimmed === BANDWIDTH_NOTE || BANDWIDTH_EXACT.test(trimmed)) return "bandwidth";
+  if (UNLIMITED_EXACT.test(trimmed)) return "unlimited";
   return null;
 }
 
@@ -65,7 +65,8 @@ function collectStatements(statement: unknown): string[] {
     return statement.flatMap((item) => collectStatements(item));
   }
   const text = asText(statement);
-  return text ? [text] : [];
+  if (!text) return [];
+  return text.split(/[;；]/).map((part) => part.trim()).filter(Boolean);
 }
 
 function withStatement(base: TrafficQuota, statements: string[]): TrafficQuota {
@@ -151,6 +152,43 @@ export function parseTrafficBilling(input: unknown): TrafficBillingMap {
     });
   }
   return { notes, error: null };
+}
+
+export type TrafficQuotaPresentation =
+  | { kind: "unknown" }
+  | { kind: "bandwidth"; note: string }
+  | { kind: "unlimited" }
+  | { kind: "limited"; bytes: number };
+
+/** 只有明确的不限额才出现 ∞。0、缺失和「配额未公开」都落在未知，并且不画配额进度。 */
+export function presentTrafficQuota(quota: TrafficQuota): TrafficQuotaPresentation {
+  if (quota.state === "limited" && quota.bytes > 0) return { kind: "limited", bytes: quota.bytes };
+  if (quota.state === "bandwidth") return { kind: "bandwidth", note: quota.note || BANDWIDTH_NOTE };
+  if (quota.state === "unlimited") return { kind: "unlimited" };
+  return { kind: "unknown" };
+}
+
+export interface TrafficQuotaCopy {
+  text: string;
+  bar: number | null;
+}
+
+/** 未知配额只给标签。进度条只属于正配额，∞ 只属于明确不限额。 */
+export function describeTrafficQuota(
+  presentation: TrafficQuotaPresentation,
+  usedBytes: number,
+  unknownLabel = "未知配额",
+): TrafficQuotaCopy {
+  if (presentation.kind === "bandwidth") return { text: presentation.note, bar: null };
+  if (presentation.kind === "unlimited") return { text: `${formatBytes(usedBytes)} / ∞`, bar: null };
+  if (presentation.kind === "limited") {
+    const ratio = usedBytes / presentation.bytes;
+    return {
+      text: `${formatBytes(usedBytes)} / ${formatBytes(presentation.bytes)}`,
+      bar: Math.min(1, Math.max(0, ratio)),
+    };
+  }
+  return { text: unknownLabel, bar: null };
 }
 
 export function trafficStatementsForNode(

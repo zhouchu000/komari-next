@@ -1,13 +1,31 @@
 import { stringToBytes } from "../utils/unitHelper";
 
-export type TrafficQuotaState = "limited" | "unlimited" | "unknown";
+export type TrafficQuotaState = "limited" | "unlimited" | "unknown" | "bandwidth";
 
 export interface TrafficQuota {
   state: TrafficQuotaState;
   bytes: number;
+  note: string | null;
 }
 
-const UNLIMITED_TEXT = /^(unlimited|infinite|infinity|∞|无限|無限)$/i;
+export interface TrafficBillingNote {
+  uuid: string;
+  billing: "bandwidth" | "unlimited";
+  label: string | null;
+}
+
+export interface TrafficBillingMap {
+  notes: TrafficBillingNote[];
+  error: string | null;
+}
+
+const UNLIMITED_EXACT = /^(unlimited|infinite|infinity|∞|无限|無限|不限|不限额|不限額)$/i;
+const UNLIMITED_PHRASE = /(不限流量|流量不限|无限流量|無限流量|流量无限|流量無限|不限额|不限額|\bunlimited\b|\binfinite\b|\binfinity\b)/i;
+const BANDWIDTH_PHRASE = /(按带宽|按頻寬|带宽计费|頻寬計費|不计流量|不計流量|不按流量|不按流量計費)/i;
+const QUANTITY = /^[\d\s.,*+eE-]+(?:\s*[a-zA-Z]+)?$/;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export const BANDWIDTH_NOTE = "按带宽不计流量";
 
 export function normalizeTrafficLimit(value: unknown): number {
   if (typeof value === "string") {
@@ -31,24 +49,120 @@ export function normalizeTrafficLimit(value: unknown): number {
   return 0;
 }
 
-export function classifyTrafficLimit(raw: unknown): TrafficQuota {
-  if (raw == null) return { state: "unknown", bytes: 0 };
+function asText(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function statementKind(text: string): "bandwidth" | "unlimited" | null {
+  if (!text) return null;
+  if (BANDWIDTH_PHRASE.test(text)) return "bandwidth";
+  if (UNLIMITED_EXACT.test(text) || UNLIMITED_PHRASE.test(text)) return "unlimited";
+  return null;
+}
+
+function collectStatements(statement: unknown): string[] {
+  if (Array.isArray(statement)) {
+    return statement.flatMap((item) => collectStatements(item));
+  }
+  const text = asText(statement);
+  return text ? [text] : [];
+}
+
+function withStatement(base: TrafficQuota, statements: string[]): TrafficQuota {
+  if (base.state === "limited") return base;
+  const bandwidth = statements.find((item) => statementKind(item) === "bandwidth");
+  if (bandwidth) {
+    const canonical = statements.find((item) => item === BANDWIDTH_NOTE);
+    const label = canonical || (bandwidth.length <= 40 ? bandwidth : BANDWIDTH_NOTE);
+    return { state: "bandwidth", bytes: 0, note: label };
+  }
+  if (statements.some((item) => statementKind(item) === "unlimited")) {
+    return { state: "unlimited", bytes: 0, note: null };
+  }
+  return base;
+}
+
+export function classifyTrafficLimit(raw: unknown, statement?: unknown): TrafficQuota {
+  const statements = collectStatements(statement);
+  const unknown = { state: "unknown" as const, bytes: 0, note: null };
+  if (raw == null) return withStatement(unknown, statements);
+
   if (typeof raw === "string") {
     const trimmed = raw.trim();
-    if (!trimmed) return { state: "unknown", bytes: 0 };
-    if (UNLIMITED_TEXT.test(trimmed)) return { state: "unlimited", bytes: 0 };
-    if (trimmed === "0") return { state: "unlimited", bytes: 0 };
-    if (!/^[\d\s.,*+eE-]+(?:\s*[a-zA-Z]+)?$/.test(trimmed)) {
-      return { state: "unknown", bytes: 0 };
-    }
+    if (!trimmed) return withStatement(unknown, statements);
+    const ownKind = statementKind(trimmed);
+    if (ownKind === "bandwidth") return { state: "bandwidth", bytes: 0, note: trimmed.length <= 40 ? trimmed : BANDWIDTH_NOTE };
+    if (ownKind === "unlimited") return { state: "unlimited", bytes: 0, note: null };
+    if (!QUANTITY.test(trimmed)) return withStatement(unknown, statements);
     const bytes = normalizeTrafficLimit(trimmed);
-    return bytes > 0 ? { state: "limited", bytes } : { state: "unknown", bytes: 0 };
+    if (bytes > 0) return { state: "limited", bytes, note: null };
+    return withStatement(unknown, statements);
   }
+
   if (typeof raw === "number") {
-    if (!Number.isFinite(raw)) return { state: "unknown", bytes: 0 };
-    if (raw <= 0) return { state: "unlimited", bytes: 0 };
+    if (!Number.isFinite(raw) || raw <= 0) return withStatement(unknown, statements);
     const bytes = normalizeTrafficLimit(raw);
-    return bytes > 0 ? { state: "limited", bytes } : { state: "unknown", bytes: 0 };
+    return bytes > 0 ? { state: "limited", bytes, note: null } : withStatement(unknown, statements);
   }
-  return { state: "unknown", bytes: 0 };
+
+  return withStatement(unknown, statements);
+}
+
+function readUuid(value: unknown): string | null {
+  const text = asText(value).toLowerCase();
+  return UUID_PATTERN.test(text) ? text : null;
+}
+
+export function parseTrafficBilling(input: unknown): TrafficBillingMap {
+  const empty = { notes: [] as TrafficBillingNote[], error: null };
+  if (input == null) return empty;
+  let value = input;
+  if (typeof input === "string") {
+    const trimmed = input.trim();
+    if (!trimmed) return empty;
+    try {
+      value = JSON.parse(trimmed);
+    } catch {
+      return { notes: [], error: "invalid_json" };
+    }
+  }
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return { notes: [], error: "invalid_shape" };
+  }
+  const record = value as Record<string, unknown>;
+  const rawNotes = Array.isArray(record.nodes) ? record.nodes : Array.isArray(record.entries) ? record.entries : null;
+  if (!rawNotes) return { notes: [], error: "invalid_shape" };
+
+  const notes: TrafficBillingNote[] = [];
+  const seen = new Set<string>();
+  for (const item of rawNotes) {
+    if (!item || typeof item !== "object" || Array.isArray(item)) continue;
+    const entry = item as Record<string, unknown>;
+    const uuid = readUuid(entry.uuid);
+    const billingText = asText(entry.billing ?? entry.mode).toLowerCase();
+    if (!uuid || seen.has(uuid)) continue;
+    if (billingText !== "bandwidth" && billingText !== "unlimited") continue;
+    seen.add(uuid);
+    const label = asText(entry.label);
+    notes.push({
+      uuid,
+      billing: billingText,
+      label: label || null,
+    });
+  }
+  return { notes, error: null };
+}
+
+export function trafficStatementsForNode(
+  fields: unknown[],
+  note: TrafficBillingNote | undefined,
+): string[] {
+  const statements = fields.flatMap((field) => collectStatements(field));
+  if (!note) return statements;
+  if (note.billing === "bandwidth") {
+    statements.push(note.label && statementKind(note.label) === "bandwidth" ? note.label : BANDWIDTH_NOTE);
+  } else if (note.billing === "unlimited") {
+    statements.push(note.label && statementKind(note.label) === "unlimited" ? note.label : "不限流量");
+  }
+  return statements;
 }

@@ -137,6 +137,7 @@ const Node = ({ basic, live, online, pingStatsEnabled = false }: NodeProps) => {
   const totalUpload = formatBytes(liveData.network.totalUp);
   const totalDownload = formatBytes(liveData.network.totalDown);
   const trafficQuota = basic.traffic_quota ?? "unknown";
+  const trafficNote = basic.traffic_note || t("common.traffic_bandwidth", { defaultValue: "按带宽不计流量" });
   const trafficLimitType = basic.traffic_limit_type ?? "sum";
   const trafficUsed = getTrafficUsed(
     liveData.network.totalUp,
@@ -252,7 +253,9 @@ const Node = ({ basic, live, online, pingStatsEnabled = false }: NodeProps) => {
               ? `${formatBytes(trafficUsed)} / ${formatBytes(basic.traffic_limit)}`
               : trafficQuota === "unlimited"
                 ? `${formatBytes(liveData.network.totalUp + liveData.network.totalDown)} / ∞`
-                : `${formatBytes(trafficUsed)} / ${t("common.traffic_unknown", { defaultValue: "未知配额" })}`;
+                : trafficQuota === "bandwidth"
+                  ? trafficNote
+                  : `${formatBytes(trafficUsed)} / ${t("common.traffic_unknown", { defaultValue: "未知配额" })}`;
 
             // 价格行文字（上行）：免费直接显示【免费】，付费显示价格/周期
             const compactPriceLine = (() => {
@@ -357,7 +360,9 @@ const Node = ({ basic, live, online, pingStatsEnabled = false }: NodeProps) => {
                           ? formatTrafficPercentage(compactTrafficPct)
                           : trafficQuota === "unlimited"
                             ? "∞"
-                            : t("common.traffic_unknown", { defaultValue: "未知配额" })}
+                            : trafficQuota === "bandwidth"
+                              ? trafficNote
+                              : t("common.traffic_unknown", { defaultValue: "未知配额" })}
                       </span>
                     </div>
                     <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden">
@@ -495,6 +500,11 @@ const Node = ({ basic, live, online, pingStatsEnabled = false }: NodeProps) => {
           {trafficQuota === "unknown" && (
             <div className="mt-2 text-[10px] text-muted-foreground">
               {t("common.traffic_unknown", { defaultValue: "未知配额" })}
+            </div>
+          )}
+          {trafficQuota === "bandwidth" && (
+            <div className="mt-2 text-[10px] text-muted-foreground">
+              {trafficNote}
             </div>
           )}
           {trafficQuota === "unlimited" && (

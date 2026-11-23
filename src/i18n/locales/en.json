@@ -293,7 +293,8 @@
     "map": "Map",
     "expiry_unknown": "Not set",
     "expiry_invalid": "Unknown",
-    "traffic_unknown": "Unknown quota"
+    "traffic_unknown": "Unknown quota",
+    "traffic_bandwidth": "Billed by bandwidth, not traffic"
   },
   "copy": "Copy",
   "copy_success": "Copied!",

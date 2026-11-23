@@ -293,7 +293,8 @@
     "weight": "权重",
     "expiry_unknown": "未填写",
     "expiry_invalid": "未知",
-    "traffic_unknown": "未知配额"
+    "traffic_unknown": "未知配额",
+    "traffic_bandwidth": "按带宽不计流量"
   },
   "copy": "复制",
   "copy_success": "已复制到剪贴板",

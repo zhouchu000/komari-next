@@ -10,7 +10,7 @@ import {
   parseHomeLatencyMap,
   targetHeadline,
 } from "../src/lib/pingTargets.ts";
-import { classifyTrafficLimit } from "../src/lib/trafficQuota.ts";
+import { classifyTrafficLimit, parseTrafficBilling, trafficStatementsForNode, BANDWIDTH_NOTE } from "../src/lib/trafficQuota.ts";
 
 const root = path.resolve(import.meta.dirname, "..");
 
@@ -25,16 +25,39 @@ test("missing expiry is unknown and does not claim long term", () => {
   assert.equal(soon.days, 14);
 });
 
-test("unknown quota is not unlimited and numeric limits stay calibrated", () => {
-  assert.equal(classifyTrafficLimit(null).state, "unknown");
-  assert.equal(classifyTrafficLimit("").state, "unknown");
-  assert.equal(classifyTrafficLimit("not-a-quota").state, "unknown");
-  assert.equal(classifyTrafficLimit(0).state, "unlimited");
+test("zero and missing quotas stay unknown unless a plan statement says otherwise", () => {
+  for (const value of [null, "", 0, "0", -1, Number.NaN, "not-a-quota"]) {
+    const quota = classifyTrafficLimit(value);
+    assert.equal(quota.state, "unknown", String(value));
+    assert.equal(quota.note, null);
+    assert.equal(JSON.stringify(quota).includes("∞"), false);
+  }
   assert.equal(classifyTrafficLimit("unlimited").state, "unlimited");
-  const twoGigabytes = classifyTrafficLimit(2);
+  assert.equal(classifyTrafficLimit("不限流量").state, "unlimited");
+  assert.equal(classifyTrafficLimit(0, "不限流量").state, "unlimited");
+  const bandwidth = classifyTrafficLimit(0, "按带宽不计流量");
+  assert.equal(bandwidth.state, "bandwidth");
+  assert.equal(bandwidth.note, "按带宽不计流量");
+  assert.equal(JSON.stringify(bandwidth).includes("∞"), false);
+  const stated = classifyTrafficLimit(0, trafficStatementsForNode([], {
+    uuid: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    billing: "bandwidth",
+    label: BANDWIDTH_NOTE,
+  }));
+  assert.equal(stated.state, "bandwidth");
+  assert.equal(stated.note, BANDWIDTH_NOTE);
+  const twoGigabytes = classifyTrafficLimit(2, "按带宽不计流量");
   assert.equal(twoGigabytes.state, "limited");
   assert.equal(twoGigabytes.bytes, 2 * 1024 ** 3);
   assert.equal(classifyTrafficLimit("1GB").bytes, 1024 ** 3);
+  const billing = parseTrafficBilling({
+    nodes: [
+      { uuid: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", billing: "bandwidth", label: "按带宽不计流量" },
+      { uuid: "cccccccc-cccc-4ccc-8ccc-cccccccccccc", billing: "unknown" },
+    ],
+  });
+  assert.equal(billing.notes.length, 1);
+  assert.equal(billing.notes[0].billing, "bandwidth");
 });
 
 test("latency stays per target and failures are not zero milliseconds", () => {
@@ -103,6 +126,32 @@ test("home perspectives need an explicit route and do not borrow other samples",
   assert.notEqual(router.targets[0].successAverageMs, router.targets[1].successAverageMs);
 });
 
+test("official home probe export shape maps tasks without averaging", () => {
+  const router = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+  const server = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+  const other = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+  const map = parseHomeLatencyMap({
+    router_uuid: router,
+    interval_seconds: 3600,
+    tasks: [
+      { id: 3, protocol: "icmp", server_uuid: server, server_name: "甲", ipv4: "203.0.113.10" },
+      { id: 11, protocol: "tcp", server_uuid: server, server_name: "甲" },
+      { id: 4, protocol: "icmp", server_uuid: other, server_name: "乙" },
+    ],
+  });
+  assert.equal(map.configured, true);
+  assert.equal(map.sourceUuid, router);
+  assert.equal(map.routes.length, 3);
+  assert.equal(JSON.stringify(map).includes("203.0.113.10"), false);
+  const perspective = buildHomePerspectives(server, map, [
+    { client: "router", task_id: 3, time: "2026-01-01T00:00:00Z", value: 12 },
+    { client: "router", task_id: 11, time: "2026-01-01T00:00:00Z", value: 40 },
+  ], []);
+  assert.equal(perspective.targets.length, 2);
+  assert.deepEqual(perspective.targets.map((target) => target.protocol), ["icmp", "tcp"]);
+  assert.deepEqual(perspective.targets.map((target) => target.successAverageMs), [12, 40]);
+});
+
 test("conflicting protocol is unknown and placeholder maps are not configured", () => {
   const map = parseHomeLatencyMap({
     source_uuid: "REPLACE_WITH_ROUTER_UUID",
@@ -143,4 +192,18 @@ test("public defaults do not embed the example node UUIDs", () => {
   const defaults = JSON.stringify(theme.configuration);
   assert.equal(defaults.includes("REPLACE_WITH_ROUTER_UUID"), false);
   assert.match(defaults, /"key":"homeLatencyMap"/);
+  const billingDefaults: unknown[] = [];
+  const visit = (value: unknown) => {
+    if (Array.isArray(value)) {
+      value.forEach(visit);
+      return;
+    }
+    if (!value || typeof value !== "object") return;
+    const record = value as { key?: string; default?: unknown };
+    if (record.key === "trafficBilling") billingDefaults.push(record.default);
+    Object.values(record).forEach(visit);
+  };
+  visit(theme.configuration);
+  assert.equal(billingDefaults.length >= 5, true);
+  assert.equal(billingDefaults.every((value) => value === ""), true);
 });

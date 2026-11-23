@@ -258,6 +258,22 @@
                     "zh-TW": "填寫 source_uuid 和 routes（task_id、server_uuid、protocol）。留空顯示未配置。不要把測速任務寫進來。",
                     "en-US": "Set source_uuid and routes (task_id, server_uuid, protocol). Empty means not configured. Do not add speed-test tasks."
                 }
+            },
+            {
+                "key": "trafficBilling",
+                "default": "",
+                "label": "Traffic billing JSON",
+                "name": {
+                    "zh-CN": "流量计费说明 JSON",
+                    "zh-TW": "流量計費說明 JSON",
+                    "en-US": "Traffic billing JSON"
+                },
+                "help": {
+                    "zh-CN": "只填写已核实的套餐说明。billing 为 bandwidth 时显示按带宽不计流量；billing 为 unlimited 时才显示不限额。留空时，0 和缺失显示未知配额，不会显示成无限。不要把私人 UUID 写进主题默认值。",
+                    "zh-TW": "只填寫已核實的套餐說明。billing 為 bandwidth 時顯示按頻寬不計流量；billing 為 unlimited 時才顯示不限額。留空時，0 和缺失顯示未知配額。",
+                    "en-US": "Only list a verified plan statement. bandwidth shows billed by bandwidth, not traffic. unlimited is the only value that shows an unlimited quota. Empty, and a traffic_limit of 0 or missing, stays unknown and is not shown as unlimited."
+                },
+                "type": "text"
             }
         ],
         "fields": [
@@ -585,6 +601,22 @@
                     "zh-TW": "填寫 source_uuid 和 routes（task_id、server_uuid、protocol）。留空顯示未配置。不要把測速任務寫進來。",
                     "en-US": "Set source_uuid and routes (task_id, server_uuid, protocol). Empty means not configured. Do not add speed-test tasks."
                 }
+            },
+            {
+                "key": "trafficBilling",
+                "default": "",
+                "label": "Traffic billing JSON",
+                "name": {
+                    "zh-CN": "流量计费说明 JSON",
+                    "zh-TW": "流量計費說明 JSON",
+                    "en-US": "Traffic billing JSON"
+                },
+                "help": {
+                    "zh-CN": "只填写已核实的套餐说明。billing 为 bandwidth 时显示按带宽不计流量；billing 为 unlimited 时才显示不限额。留空时，0 和缺失显示未知配额，不会显示成无限。不要把私人 UUID 写进主题默认值。",
+                    "zh-TW": "只填寫已核實的套餐說明。billing 為 bandwidth 時顯示按頻寬不計流量；billing 為 unlimited 時才顯示不限額。留空時，0 和缺失顯示未知配額。",
+                    "en-US": "Only list a verified plan statement. bandwidth shows billed by bandwidth, not traffic. unlimited is the only value that shows an unlimited quota. Empty, and a traffic_limit of 0 or missing, stays unknown and is not shown as unlimited."
+                },
+                "type": "string"
             }
         ],
         "options": [
@@ -908,6 +940,22 @@
                     "zh-TW": "填寫 source_uuid 和 routes（task_id、server_uuid、protocol）。留空顯示未配置。不要把測速任務寫進來。",
                     "en-US": "Set source_uuid and routes (task_id, server_uuid, protocol). Empty means not configured. Do not add speed-test tasks."
                 }
+            },
+            {
+                "key": "trafficBilling",
+                "default": "",
+                "label": "Traffic billing JSON",
+                "name": {
+                    "zh-CN": "流量计费说明 JSON",
+                    "zh-TW": "流量計費說明 JSON",
+                    "en-US": "Traffic billing JSON"
+                },
+                "help": {
+                    "zh-CN": "只填写已核实的套餐说明。billing 为 bandwidth 时显示按带宽不计流量；billing 为 unlimited 时才显示不限额。留空时，0 和缺失显示未知配额，不会显示成无限。不要把私人 UUID 写进主题默认值。",
+                    "zh-TW": "只填寫已核實的套餐說明。billing 為 bandwidth 時顯示按頻寬不計流量；billing 為 unlimited 時才顯示不限額。留空時，0 和缺失顯示未知配額。",
+                    "en-US": "Only list a verified plan statement. bandwidth shows billed by bandwidth, not traffic. unlimited is the only value that shows an unlimited quota. Empty, and a traffic_limit of 0 or missing, stays unknown and is not shown as unlimited."
+                },
+                "type": "string"
             }
         ],
         "items": [
@@ -1235,6 +1283,22 @@
                     "zh-TW": "填寫 source_uuid 和 routes（task_id、server_uuid、protocol）。留空顯示未配置。不要把測速任務寫進來。",
                     "en-US": "Set source_uuid and routes (task_id, server_uuid, protocol). Empty means not configured. Do not add speed-test tasks."
                 }
+            },
+            {
+                "key": "trafficBilling",
+                "default": "",
+                "label": "Traffic billing JSON",
+                "name": {
+                    "zh-CN": "流量计费说明 JSON",
+                    "zh-TW": "流量計費說明 JSON",
+                    "en-US": "Traffic billing JSON"
+                },
+                "help": {
+                    "zh-CN": "只填写已核实的套餐说明。billing 为 bandwidth 时显示按带宽不计流量；billing 为 unlimited 时才显示不限额。留空时，0 和缺失显示未知配额，不会显示成无限。不要把私人 UUID 写进主题默认值。",
+                    "zh-TW": "只填寫已核實的套餐說明。billing 為 bandwidth 時顯示按頻寬不計流量；billing 為 unlimited 時才顯示不限額。留空時，0 和缺失顯示未知配額。",
+                    "en-US": "Only list a verified plan statement. bandwidth shows billed by bandwidth, not traffic. unlimited is the only value that shows an unlimited quota. Empty, and a traffic_limit of 0 or missing, stays unknown and is not shown as unlimited."
+                },
+                "type": "string"
             }
         ],
         "data": [
@@ -1562,6 +1626,22 @@
                     "zh-TW": "填寫 source_uuid 和 routes（task_id、server_uuid、protocol）。留空顯示未配置。不要把測速任務寫進來。",
                     "en-US": "Set source_uuid and routes (task_id, server_uuid, protocol). Empty means not configured. Do not add speed-test tasks."
                 }
+            },
+            {
+                "key": "trafficBilling",
+                "default": "",
+                "label": "Traffic billing JSON",
+                "name": {
+                    "zh-CN": "流量计费说明 JSON",
+                    "zh-TW": "流量計費說明 JSON",
+                    "en-US": "Traffic billing JSON"
+                },
+                "help": {
+                    "zh-CN": "只填写已核实的套餐说明。billing 为 bandwidth 时显示按带宽不计流量；billing 为 unlimited 时才显示不限额。留空时，0 和缺失显示未知配额，不会显示成无限。不要把私人 UUID 写进主题默认值。",
+                    "zh-TW": "只填寫已核實的套餐說明。billing 為 bandwidth 時顯示按頻寬不計流量；billing 為 unlimited 時才顯示不限額。留空時，0 和缺失顯示未知配額。",
+                    "en-US": "Only list a verified plan statement. bandwidth shows billed by bandwidth, not traffic. unlimited is the only value that shows an unlimited quota. Empty, and a traffic_limit of 0 or missing, stays unknown and is not shown as unlimited."
+                },
+                "type": "string"
             }
         ]
     }

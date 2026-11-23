@@ -65,6 +65,7 @@ export interface ManagedThemeSettings extends Partial<ThemeConfig> {
   language?: string;
   nodeCityMap?: string;
   homeLatencyMap?: string;
+  trafficBilling?: string;
 }
 
 interface ThemeContextType {
@@ -80,6 +81,7 @@ interface ThemeContextType {
   language: string;
   nodeCityMap: string;
   homeLatencyMap: string;
+  trafficBilling: string;
   setColorTheme: (theme: ColorTheme) => void;
   setCardLayout: (layout: CardLayout) => void;
   setCardDesign: (design: CardDesign) => void;
@@ -608,8 +610,10 @@ function normalizeManagedThemeSettings(input: unknown): ManagedThemeSettings {
 
   const nodeCityMap = pickString(readDottedValue(source, "nodeCityMap"));
   const homeLatencyMap = pickString(readDottedValue(source, "homeLatencyMap"));
+  const trafficBilling = pickString(readDottedValue(source, "trafficBilling"));
   if (nodeCityMap !== undefined) result.nodeCityMap = nodeCityMap;
   if (homeLatencyMap !== undefined) result.homeLatencyMap = homeLatencyMap;
+  if (trafficBilling !== undefined) result.trafficBilling = trafficBilling;
 
   return result;
 }
@@ -711,6 +715,7 @@ function mergeManagedSettings(
       "language",
       "nodeCityMap",
       "homeLatencyMap",
+      "trafficBilling",
     ] as const
   ).forEach((key) => {
     if (patch[key] !== undefined) {
@@ -830,6 +835,7 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   );
   const nodeCityMap = managedThemeSettings.nodeCityMap ?? "";
   const homeLatencyMap = managedThemeSettings.homeLatencyMap ?? "";
+  const trafficBilling = managedThemeSettings.trafficBilling ?? "";
 
   const clearLocalOverrides = useCallback(() => {
     setLocalThemeOverrides({});
@@ -1295,6 +1301,7 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       language,
       nodeCityMap,
       homeLatencyMap,
+      trafficBilling,
       setColorTheme,
       setCardLayout,
       setCardDesign,
@@ -1326,6 +1333,7 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       language,
       nodeCityMap,
       homeLatencyMap,
+      trafficBilling,
       managedThemeSettings,
       nodeViewMode,
       setBackgroundBlurEnabled,

@@ -293,7 +293,8 @@
     "map": "地圖",
     "expiry_unknown": "未填寫",
     "expiry_invalid": "未知",
-    "traffic_unknown": "未知配額"
+    "traffic_unknown": "未知配額",
+    "traffic_bandwidth": "按頻寬不計流量"
   },
   "copy": "複製",
   "copy_success": "已複製到剪貼板",

@@ -109,8 +109,12 @@ export function parseHomeLatencyMap(input: unknown): HomeLatencyMap {
   }
   if (!isRecord(value)) return { ...empty, error: "invalid_shape" };
 
-  const sourceUuid = readUuid(value.source_uuid ?? value.sourceUuid);
-  const rawRoutes = Array.isArray(value.routes) ? value.routes : null;
+  const sourceUuid = readUuid(value.source_uuid ?? value.sourceUuid ?? value.router_uuid ?? value.routerUuid);
+  const rawRoutes = Array.isArray(value.routes)
+    ? value.routes
+    : Array.isArray(value.tasks)
+      ? value.tasks
+      : null;
   if (rawRoutes == null) return { ...empty, error: "invalid_shape" };
   if (!sourceUuid) {
     return rawRoutes.length === 0 ? empty : { ...empty, error: "missing_source" };
@@ -120,13 +124,13 @@ export function parseHomeLatencyMap(input: unknown): HomeLatencyMap {
   const seen = new Set<string>();
   for (const item of rawRoutes) {
     if (!isRecord(item)) continue;
-    const taskId = readTaskId(item.task_id ?? item.taskId);
+    const taskId = readTaskId(item.task_id ?? item.taskId ?? item.id);
     const serverUuid = readUuid(item.server_uuid ?? item.serverUuid);
     if (taskId == null || !serverUuid) continue;
     const key = `${taskId}:${serverUuid}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    const label = readLabel(item.label);
+    const label = readLabel(item.label ?? item.server_name ?? item.serverName);
     const routeProtocol = normalizePingProtocol(item.protocol);
     routes.push({
       taskId,

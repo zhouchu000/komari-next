@@ -444,6 +444,10 @@ const NodeTable: React.FC<NodeTableProps> = ({ nodes, liveData }) => {
                         <div className="text-[10px] text-muted-foreground">
                           {t("common.traffic_unknown", { defaultValue: "未知配额" })}
                         </div>
+                      ) : node.traffic_quota === "bandwidth" ? (
+                        <div className="text-[10px] text-muted-foreground">
+                          {node.traffic_note || t("common.traffic_bandwidth", { defaultValue: "按带宽不计流量" })}
+                        </div>
                       ) : node.traffic_quota === "unlimited" ? (
                         <div className="font-mono text-xs tabular-nums text-muted-foreground whitespace-nowrap">
                           {formatBytes(trafficUsed)} / ∞
@@ -467,8 +471,8 @@ const NodeTable: React.FC<NodeTableProps> = ({ nodes, liveData }) => {
                           </div>
                         </div>
                       ) : (
-                        <div className="font-mono text-xs tabular-nums text-muted-foreground whitespace-nowrap">
-                          {formatBytes(nodeData.network.totalUp + nodeData.network.totalDown)}
+                        <div className="text-[10px] text-muted-foreground">
+                          {t("common.traffic_unknown", { defaultValue: "未知配额" })}
                         </div>
                       )}
                     </div>

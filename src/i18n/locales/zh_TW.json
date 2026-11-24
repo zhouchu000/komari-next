@@ -414,7 +414,16 @@
     "protocol": "協定",
     "protocolIcmp": "ICMP",
     "protocolTcp": "TCP",
-    "protocolUnknown": "未知"
+    "protocolUnknown": "未知",
+    "latencyNormal": "正常",
+    "latencyElevated": "偏高",
+    "latencyAbnormal": "明顯異常",
+    "latencyUnrated": "樣本不足，不判斷異常",
+    "latencyNoSample": "無樣本",
+    "latencyInsufficient": "成功樣本 {{count}}/{{min}}，樣本不足，不把目前延遲判成異常",
+    "latencyExplicitBand": "已配置門檻：綠 ≤{{green}} ms，黃 ≤{{yellow}} ms",
+    "latencyBaselineBand": "本線路基線 {{baseline}} ms（{{count}} 個成功樣本）：綠 ≤{{green}} ms，黃 ≤{{yellow}} ms",
+    "lossBand": "丟包單獨著色：≤{{normal}}% 正常，≤{{elevated}}% 偏高，更高為明顯異常"
   },
   "nodes": {
     "empty": "暫無伺服器資料",

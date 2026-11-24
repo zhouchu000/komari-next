@@ -16,6 +16,7 @@ import { formatBytes } from "@/utils/unitHelper";
 import { useTheme } from "@/contexts/ThemeContext";
 import { usePingStats } from "@/hooks/usePingStats";
 import { describeExpiry } from "@/lib/expiryDisplay";
+import { parseHomeLatencyMap } from "@/lib/pingTargets";
 import { describeTrafficQuota, presentTrafficQuota } from "@/lib/trafficQuota";
 import { PingTargetList } from "@/components/PingTargetList";
 
@@ -98,13 +99,14 @@ interface NodeProps {
 
 const Node = ({ basic, live, online, pingStatsEnabled = false }: NodeProps) => {
   const [t] = useTranslation();
-  const { guestDisplay, themeConfig, homeLatencyMap } = useTheme();
+  const { guestDisplay, themeConfig, homeLatencyMap, latencyQuality } = useTheme();
   const { nodeList } = useNodeList();
   const serverNames = React.useMemo(
     () => new Map((nodeList ?? []).map((node) => [node.uuid.trim().toLowerCase(), node.name])),
     [nodeList],
   );
   const pingStats = usePingStats(basic.uuid, 24, pingStatsEnabled, homeLatencyMap);
+  const homeSourceUuid = parseHomeLatencyMap(homeLatencyMap).sourceUuid;
   const showPrice = guestDisplay.showPrice;
   const showExpiredAt = guestDisplay.showExpiredAt;
 
@@ -416,7 +418,7 @@ const Node = ({ basic, live, online, pingStatsEnabled = false }: NodeProps) => {
                 <Separator className="opacity-30" />
 
                 {/* ── 延迟/丢包行，依 cardDesign 切换 ── */}
-                <PingTargetList pingStats={pingStats} t={t} serverNames={serverNames} />
+                <PingTargetList pingStats={pingStats} t={t} serverNames={serverNames} latencyQuality={latencyQuality} serverUuid={basic.uuid} homeSourceUuid={homeSourceUuid} />
 
               </div>
             );
@@ -490,7 +492,7 @@ const Node = ({ basic, live, online, pingStatsEnabled = false }: NodeProps) => {
 
           <Separator className="opacity-30" />
 
-          <PingTargetList pingStats={pingStats} t={t} serverNames={serverNames} />
+          <PingTargetList pingStats={pingStats} t={t} serverNames={serverNames} latencyQuality={latencyQuality} serverUuid={basic.uuid} homeSourceUuid={homeSourceUuid} />
 
           {quotaCopy.bar == null && trafficPresentation.kind !== "unlimited" && (
             <div className="mt-2 text-[10px] text-muted-foreground">

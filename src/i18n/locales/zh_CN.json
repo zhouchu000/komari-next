@@ -457,7 +457,16 @@
     "protocol": "协议",
     "protocolIcmp": "ICMP",
     "protocolTcp": "TCP",
-    "protocolUnknown": "未知"
+    "protocolUnknown": "未知",
+    "latencyNormal": "正常",
+    "latencyElevated": "偏高",
+    "latencyAbnormal": "明显异常",
+    "latencyUnrated": "样本不足，不判断异常",
+    "latencyNoSample": "无样本",
+    "latencyInsufficient": "成功样本 {{count}}/{{min}}，样本不足，不把当前延迟判成异常",
+    "latencyExplicitBand": "已配置门槛：绿 ≤{{green}} ms，黄 ≤{{yellow}} ms",
+    "latencyBaselineBand": "本线路基线 {{baseline}} ms（{{count}} 个成功样本）：绿 ≤{{green}} ms，黄 ≤{{yellow}} ms",
+    "lossBand": "丢包单独着色：≤{{normal}}% 正常，≤{{elevated}}% 偏高，更高为明显异常"
   },
   "nodeDisplay": {
     "defaultView": "默认视图",

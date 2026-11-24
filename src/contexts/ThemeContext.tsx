@@ -66,6 +66,7 @@ export interface ManagedThemeSettings extends Partial<ThemeConfig> {
   nodeCityMap?: string;
   homeLatencyMap?: string;
   trafficBilling?: string;
+  latencyQuality?: string;
 }
 
 interface ThemeContextType {
@@ -82,6 +83,7 @@ interface ThemeContextType {
   nodeCityMap: string;
   homeLatencyMap: string;
   trafficBilling: string;
+  latencyQuality: string;
   setColorTheme: (theme: ColorTheme) => void;
   setCardLayout: (layout: CardLayout) => void;
   setCardDesign: (design: CardDesign) => void;
@@ -611,9 +613,11 @@ function normalizeManagedThemeSettings(input: unknown): ManagedThemeSettings {
   const nodeCityMap = pickString(readDottedValue(source, "nodeCityMap"));
   const homeLatencyMap = pickString(readDottedValue(source, "homeLatencyMap"));
   const trafficBilling = pickString(readDottedValue(source, "trafficBilling"));
+  const latencyQuality = pickString(readDottedValue(source, "latencyQuality"));
   if (nodeCityMap !== undefined) result.nodeCityMap = nodeCityMap;
   if (homeLatencyMap !== undefined) result.homeLatencyMap = homeLatencyMap;
   if (trafficBilling !== undefined) result.trafficBilling = trafficBilling;
+  if (latencyQuality !== undefined) result.latencyQuality = latencyQuality;
 
   return result;
 }
@@ -716,6 +720,7 @@ function mergeManagedSettings(
       "nodeCityMap",
       "homeLatencyMap",
       "trafficBilling",
+      "latencyQuality",
     ] as const
   ).forEach((key) => {
     if (patch[key] !== undefined) {
@@ -836,6 +841,7 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const nodeCityMap = managedThemeSettings.nodeCityMap ?? "";
   const homeLatencyMap = managedThemeSettings.homeLatencyMap ?? "";
   const trafficBilling = managedThemeSettings.trafficBilling ?? "";
+  const latencyQuality = managedThemeSettings.latencyQuality ?? "";
 
   const clearLocalOverrides = useCallback(() => {
     setLocalThemeOverrides({});
@@ -1302,6 +1308,7 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       nodeCityMap,
       homeLatencyMap,
       trafficBilling,
+      latencyQuality,
       setColorTheme,
       setCardLayout,
       setCardDesign,
@@ -1334,6 +1341,7 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       nodeCityMap,
       homeLatencyMap,
       trafficBilling,
+      latencyQuality,
       managedThemeSettings,
       nodeViewMode,
       setBackgroundBlurEnabled,

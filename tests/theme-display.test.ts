@@ -11,6 +11,14 @@ import {
   targetHeadline,
 } from "../src/lib/pingTargets.ts";
 import { classifyTrafficLimit, describeTrafficQuota, parseTrafficBilling, presentTrafficQuota, trafficStatementsForNode, BANDWIDTH_NOTE } from "../src/lib/trafficQuota.ts";
+import {
+  deriveLatencyScale,
+  explicitLatencyScale,
+  gradeLatency,
+  gradeLoss,
+  matchLatencyBand,
+  parseLatencyQuality,
+} from "../src/lib/latencyQuality.ts";
 
 const root = path.resolve(import.meta.dirname, "..");
 
@@ -216,6 +224,85 @@ test("city map aggregates a city and refuses unknown or conflicting coordinates"
   assert.equal(JSON.stringify(view).includes("ipv4"), false);
 });
 
+test("latency color follows each route baseline instead of one millisecond cutoff", () => {
+  const distant = Array.from({ length: 12 }, () => 180);
+  const distantScale = deriveLatencyScale(distant);
+  assert.equal(distantScale.source, "baseline");
+  assert.ok((distantScale.baselineMs ?? 0) >= 170 && (distantScale.baselineMs ?? 0) <= 190);
+  assert.equal(gradeLatency(180, false, distantScale), "normal");
+  assert.equal(gradeLatency(220, false, distantScale), "normal");
+  assert.notEqual(gradeLatency(220, false, distantScale), "abnormal");
+  assert.equal(gradeLatency(distantScale.greenMaxMs, false, distantScale), "normal");
+  assert.equal(gradeLatency((distantScale.greenMaxMs ?? 0) + 0.1, false, distantScale), "elevated");
+  assert.equal(gradeLatency(distantScale.yellowMaxMs, false, distantScale), "elevated");
+  assert.equal(gradeLatency((distantScale.yellowMaxMs ?? 0) + 0.1, false, distantScale), "abnormal");
+
+  const local = deriveLatencyScale(Array.from({ length: 12 }, () => 20));
+  assert.equal(gradeLatency(20, false, local), "normal");
+  assert.equal(gradeLatency(180, false, local), "abnormal");
+  assert.equal(gradeLatency(180, false, distantScale), "normal");
+
+  const thin = deriveLatencyScale([200, 210, 220]);
+  assert.equal(thin.source, "insufficient");
+  assert.equal(gradeLatency(220, false, thin), "unrated");
+  assert.equal(gradeLatency(null, false, thin), "none");
+  assert.equal(gradeLatency(20, true, distantScale), "unavailable");
+
+  const spiked = deriveLatencyScale([...Array.from({ length: 10 }, () => 30), 400, 420, 450, 480]);
+  assert.ok((spiked.baselineMs ?? 999) < 50);
+  assert.equal(gradeLatency(30, false, spiked), "normal");
+  assert.equal(gradeLatency(450, false, spiked), "abnormal");
+  const outage = deriveLatencyScale([...Array.from({ length: 4 }, () => 30), ...Array.from({ length: 12 }, () => 400)]);
+  assert.equal(outage.source, "insufficient");
+  assert.equal(gradeLatency(400, false, outage), "unrated");
+
+  const configured = parseLatencyQuality({
+    routes: [
+      { source: "server", task_id: 1, protocol: "tcp", green_max_ms: 220, yellow_max_ms: 340 },
+      { source: "home", task_id: 1, protocol: "icmp", green_max_ms: 40, yellow_max_ms: 80 },
+      { source: "REPLACE_WITH_ROUTER_UUID", task_id: 9, protocol: "tcp", green_max_ms: 10, yellow_max_ms: 20 },
+    ],
+  });
+  assert.equal(configured.routes.length, 2);
+  const serverBand = matchLatencyBand(configured.routes, {
+    role: "server",
+    taskId: 1,
+    protocol: "tcp",
+    linkedServerUuid: null,
+  }, "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
+  assert.ok(serverBand);
+  const explicit = explicitLatencyScale(serverBand!, 2, configured.options.minSamples);
+  assert.equal(gradeLatency(200, false, explicit), "normal");
+  assert.equal(gradeLatency(400, false, explicit), "abnormal");
+  assert.equal(matchLatencyBand(configured.routes, {
+    role: "server",
+    taskId: 1,
+    protocol: "icmp",
+    linkedServerUuid: null,
+  }, null), null);
+  assert.equal(matchLatencyBand(configured.routes, {
+    role: "home",
+    taskId: 1,
+    protocol: "tcp",
+    linkedServerUuid: null,
+  }, null), null);
+
+  assert.equal(gradeLoss(0), "normal");
+  assert.equal(gradeLoss(1), "normal");
+  assert.equal(gradeLoss(5), "elevated");
+  assert.equal(gradeLoss(20), "abnormal");
+  assert.equal(gradeLoss(null), "none");
+  assert.equal(gradeLatency(180, false, distantScale), "normal");
+
+  const reported = buildNodePingReport([
+    { client: "node", task_id: 1, time: "2026-01-01T00:00:00Z", value: 180 },
+    { client: "node", task_id: 1, time: "2026-01-01T00:01:00Z", value: -1 },
+  ], [{ id: 1, name: "远端", type: "tcp", loss: 50 }], "server");
+  assert.equal(reported.targets[0].latestLatencyMs, null);
+  assert.equal(reported.targets[0].samples[0].latency, 180);
+  assert.equal(targetHeadline(reported.targets[0]), "unavailable");
+});
+
 test("public defaults do not embed the example node UUIDs", () => {
   const example = JSON.parse(fs.readFileSync(path.join(root, "examples/node-city-map.example.json"), "utf8"));
   const uuids: string[] = example.nodes.map((node: { uuid: string }) => node.uuid);
@@ -238,10 +325,13 @@ test("public defaults do not embed the example node UUIDs", () => {
     }
     if (!value || typeof value !== "object") return;
     const record = value as { key?: string; default?: unknown };
-    if (record.key === "trafficBilling") billingDefaults.push(record.default);
+    if (record.key === "trafficBilling" || record.key === "latencyQuality") billingDefaults.push(record.default);
     Object.values(record).forEach(visit);
   };
   visit(theme.configuration);
-  assert.equal(billingDefaults.length >= 5, true);
+  assert.equal(billingDefaults.length >= 10, true);
   assert.equal(billingDefaults.every((value) => value === ""), true);
+  const qualityExample = fs.readFileSync(path.join(root, "examples/latency-quality.example.json"), "utf8");
+  assert.equal(qualityExample.includes("eeacb6ad"), false);
+  assert.equal(JSON.stringify(parseLatencyQuality(qualityExample).routes).includes("REPLACE_WITH"), false);
 });

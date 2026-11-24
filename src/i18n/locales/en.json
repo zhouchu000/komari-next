@@ -414,7 +414,16 @@
     "protocol": "Protocol",
     "protocolIcmp": "ICMP",
     "protocolTcp": "TCP",
-    "protocolUnknown": "Unknown"
+    "protocolUnknown": "Unknown",
+    "latencyNormal": "Normal",
+    "latencyElevated": "Elevated",
+    "latencyAbnormal": "Clearly abnormal",
+    "latencyUnrated": "Not enough samples to judge",
+    "latencyNoSample": "No sample",
+    "latencyInsufficient": "{{count}}/{{min}} successful samples; current latency is not judged abnormal",
+    "latencyExplicitBand": "Configured limits: green ≤{{green}} ms, yellow ≤{{yellow}} ms",
+    "latencyBaselineBand": "This route's baseline is {{baseline}} ms from {{count}} successes: green ≤{{green}} ms, yellow ≤{{yellow}} ms",
+    "lossBand": "Packet loss is colored separately: ≤{{normal}}% normal, ≤{{elevated}}% elevated, above that clearly abnormal"
   },
   "nodes": {
     "empty": "No server data available",

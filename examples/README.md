@@ -45,3 +45,31 @@
 ```
 
 `billing` 为 `bandwidth` 时显示按带宽不计流量。`billing` 为 `unlimited` 时才显示不限额。有限数值配额仍按 GiB 校准，这份说明不会改写账本，也不会覆盖已经填写的正数配额。
+
+## 延迟着色 `latencyQuality`
+
+留空时，每条线路用自己的成功样本估计正常水平，不使用统一的 100 ms 或 180 ms 门槛。稳定在 150–220 ms 的线路，这个区间就是绿色。明显高于这条基线才是黄色或红色。成功样本少于 8 个时不判断异常。没有样本是灰色。探测失败仍显示不可用，不改成 0 ms。丢包按自己的百分比着色，不和延迟混在一起。
+
+需要写死某条线路时，按探测来源、目标和协议分开。`source` 可以是 `server`、`home` 或探测节点 UUID。`task_id` 和 `server_uuid` 至少填一个。不要把私人 UUID 写进主题默认值。
+
+```json
+{
+  "min_samples": 8,
+  "routes": [
+    {
+      "source": "server",
+      "task_id": 1,
+      "protocol": "tcp",
+      "green_max_ms": 80,
+      "yellow_max_ms": 160
+    },
+    {
+      "source": "REPLACE_WITH_ROUTER_UUID",
+      "server_uuid": "REPLACE_WITH_SERVER_UUID",
+      "protocol": "icmp",
+      "green_max_ms": 40,
+      "yellow_max_ms": 90
+    }
+  ]
+}
+```

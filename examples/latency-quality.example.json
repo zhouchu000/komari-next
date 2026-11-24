@@ -1,0 +1,23 @@
+{
+  "min_samples": 8,
+  "green_ratio": 1.25,
+  "yellow_ratio": 1.85,
+  "green_slack_ms": 12,
+  "yellow_slack_ms": 30,
+  "routes": [
+    {
+      "source": "server",
+      "task_id": 1,
+      "protocol": "tcp",
+      "green_max_ms": 80,
+      "yellow_max_ms": 160
+    },
+    {
+      "source": "REPLACE_WITH_ROUTER_UUID",
+      "server_uuid": "REPLACE_WITH_SERVER_UUID",
+      "protocol": "icmp",
+      "green_max_ms": 40,
+      "yellow_max_ms": 90
+    }
+  ]
+}

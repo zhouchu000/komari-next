@@ -274,6 +274,22 @@
                     "en-US": "Only list a verified plan statement. bandwidth shows billed by bandwidth, not traffic. unlimited is the only value that shows an unlimited quota. Empty, and a traffic_limit of 0 or missing, stays unknown and is not shown as unlimited."
                 },
                 "type": "text"
+            },
+            {
+                "key": "latencyQuality",
+                "default": "",
+                "label": "Latency quality JSON",
+                "name": {
+                    "zh-CN": "延迟着色 JSON",
+                    "zh-TW": "延遲著色 JSON",
+                    "en-US": "Latency quality JSON"
+                },
+                "help": {
+                    "zh-CN": "留空时按每条线路自己的成功样本估计正常水平：正常为绿，偏高为黄，明显高于本线路才为红。样本不足不判断异常，无样本为灰，失败仍是不可用。丢包单独着色。routes 可按 source、task_id 或 server_uuid、protocol 写明绿黄上限。不要把私人 UUID 写进主题默认值。",
+                    "zh-TW": "留空時按每條線路自己的成功樣本估計正常水平。樣本不足不判斷異常，無樣本為灰，失敗仍是不可用。不要把私人 UUID 寫進主題預設值。",
+                    "en-US": "Empty uses each route's own successful samples as its normal level. Green is normal, yellow is elevated, and red is clearly above that route. Too few samples are not judged, missing samples stay gray, and failures stay unavailable. Packet loss is colored separately. Do not put private UUIDs in the theme default."
+                },
+                "type": "text"
             }
         ],
         "fields": [
@@ -617,6 +633,22 @@
                     "en-US": "Only list a verified plan statement. bandwidth shows billed by bandwidth, not traffic. unlimited is the only value that shows an unlimited quota. Empty, and a traffic_limit of 0 or missing, stays unknown and is not shown as unlimited."
                 },
                 "type": "string"
+            },
+            {
+                "key": "latencyQuality",
+                "default": "",
+                "label": "Latency quality JSON",
+                "name": {
+                    "zh-CN": "延迟着色 JSON",
+                    "zh-TW": "延遲著色 JSON",
+                    "en-US": "Latency quality JSON"
+                },
+                "help": {
+                    "zh-CN": "留空时按每条线路自己的成功样本估计正常水平：正常为绿，偏高为黄，明显高于本线路才为红。样本不足不判断异常，无样本为灰，失败仍是不可用。丢包单独着色。routes 可按 source、task_id 或 server_uuid、protocol 写明绿黄上限。不要把私人 UUID 写进主题默认值。",
+                    "zh-TW": "留空時按每條線路自己的成功樣本估計正常水平。樣本不足不判斷異常，無樣本為灰，失敗仍是不可用。不要把私人 UUID 寫進主題預設值。",
+                    "en-US": "Empty uses each route's own successful samples as its normal level. Green is normal, yellow is elevated, and red is clearly above that route. Too few samples are not judged, missing samples stay gray, and failures stay unavailable. Packet loss is colored separately. Do not put private UUIDs in the theme default."
+                },
+                "type": "text"
             }
         ],
         "options": [
@@ -956,6 +988,22 @@
                     "en-US": "Only list a verified plan statement. bandwidth shows billed by bandwidth, not traffic. unlimited is the only value that shows an unlimited quota. Empty, and a traffic_limit of 0 or missing, stays unknown and is not shown as unlimited."
                 },
                 "type": "string"
+            },
+            {
+                "key": "latencyQuality",
+                "default": "",
+                "label": "Latency quality JSON",
+                "name": {
+                    "zh-CN": "延迟着色 JSON",
+                    "zh-TW": "延遲著色 JSON",
+                    "en-US": "Latency quality JSON"
+                },
+                "help": {
+                    "zh-CN": "留空时按每条线路自己的成功样本估计正常水平：正常为绿，偏高为黄，明显高于本线路才为红。样本不足不判断异常，无样本为灰，失败仍是不可用。丢包单独着色。routes 可按 source、task_id 或 server_uuid、protocol 写明绿黄上限。不要把私人 UUID 写进主题默认值。",
+                    "zh-TW": "留空時按每條線路自己的成功樣本估計正常水平。樣本不足不判斷異常，無樣本為灰，失敗仍是不可用。不要把私人 UUID 寫進主題預設值。",
+                    "en-US": "Empty uses each route's own successful samples as its normal level. Green is normal, yellow is elevated, and red is clearly above that route. Too few samples are not judged, missing samples stay gray, and failures stay unavailable. Packet loss is colored separately. Do not put private UUIDs in the theme default."
+                },
+                "type": "text"
             }
         ],
         "items": [
@@ -1299,6 +1347,22 @@
                     "en-US": "Only list a verified plan statement. bandwidth shows billed by bandwidth, not traffic. unlimited is the only value that shows an unlimited quota. Empty, and a traffic_limit of 0 or missing, stays unknown and is not shown as unlimited."
                 },
                 "type": "string"
+            },
+            {
+                "key": "latencyQuality",
+                "default": "",
+                "label": "Latency quality JSON",
+                "name": {
+                    "zh-CN": "延迟着色 JSON",
+                    "zh-TW": "延遲著色 JSON",
+                    "en-US": "Latency quality JSON"
+                },
+                "help": {
+                    "zh-CN": "留空时按每条线路自己的成功样本估计正常水平：正常为绿，偏高为黄，明显高于本线路才为红。样本不足不判断异常，无样本为灰，失败仍是不可用。丢包单独着色。routes 可按 source、task_id 或 server_uuid、protocol 写明绿黄上限。不要把私人 UUID 写进主题默认值。",
+                    "zh-TW": "留空時按每條線路自己的成功樣本估計正常水平。樣本不足不判斷異常，無樣本為灰，失敗仍是不可用。不要把私人 UUID 寫進主題預設值。",
+                    "en-US": "Empty uses each route's own successful samples as its normal level. Green is normal, yellow is elevated, and red is clearly above that route. Too few samples are not judged, missing samples stay gray, and failures stay unavailable. Packet loss is colored separately. Do not put private UUIDs in the theme default."
+                },
+                "type": "text"
             }
         ],
         "data": [
@@ -1642,6 +1706,22 @@
                     "en-US": "Only list a verified plan statement. bandwidth shows billed by bandwidth, not traffic. unlimited is the only value that shows an unlimited quota. Empty, and a traffic_limit of 0 or missing, stays unknown and is not shown as unlimited."
                 },
                 "type": "string"
+            },
+            {
+                "key": "latencyQuality",
+                "default": "",
+                "label": "Latency quality JSON",
+                "name": {
+                    "zh-CN": "延迟着色 JSON",
+                    "zh-TW": "延遲著色 JSON",
+                    "en-US": "Latency quality JSON"
+                },
+                "help": {
+                    "zh-CN": "留空时按每条线路自己的成功样本估计正常水平：正常为绿，偏高为黄，明显高于本线路才为红。样本不足不判断异常，无样本为灰，失败仍是不可用。丢包单独着色。routes 可按 source、task_id 或 server_uuid、protocol 写明绿黄上限。不要把私人 UUID 写进主题默认值。",
+                    "zh-TW": "留空時按每條線路自己的成功樣本估計正常水平。樣本不足不判斷異常，無樣本為灰，失敗仍是不可用。不要把私人 UUID 寫進主題預設值。",
+                    "en-US": "Empty uses each route's own successful samples as its normal level. Green is normal, yellow is elevated, and red is clearly above that route. Too few samples are not judged, missing samples stay gray, and failures stay unavailable. Packet loss is colored separately. Do not put private UUIDs in the theme default."
+                },
+                "type": "text"
             }
         ]
     }

@@ -114,15 +114,15 @@ i18next
   .use(initReactI18next)
   .init({
     resources,
-    fallbackLng: "en",
-    lng: "en",
+    fallbackLng: "zh-CN",
+    lng: "zh-CN",
     supportedLngs: supportedLanguages,
     load: "currentOnly",
     interpolation: {
       escapeValue: false, // React handles XSS
     },
     detection: {
-      order: ["querystring", "localStorage", "cookie", "navigator", "htmlTag"],
+      order: ["querystring"],
       // ThemeContext persists explicit local choices in komari-language.
       caches: [],
     },

@@ -2,7 +2,8 @@
 
 import React from "react";
 import { useRPC2Call } from "./RPC2Context";
-import { stringToBytes } from "@/utils/unitHelper";
+import { useTheme } from "@/contexts/ThemeContext";
+import { classifyTrafficLimit, parseTrafficBilling, trafficStatementsForNode, type TrafficQuotaState } from "@/lib/trafficQuota";
 
 export type NodeBasicInfo = {
   /** 节点唯一标识符 */
@@ -46,6 +47,10 @@ export type NodeBasicInfo = {
   group: string;
   /** 流量阈值 */
   traffic_limit: number;
+  /** 流量配额。0 和缺失是未知；只有明确套餐说明才是不限额或按带宽。 */
+  traffic_quota: TrafficQuotaState;
+  /** 按带宽不计流量时的明确说明。未知和不限额不使用这句话。 */
+  traffic_note: string | null;
   /** 流量阈值类型 */
   traffic_limit_type: undefined | "sum" | "max" | "min" | "up" | "down";
   /** 过期时间 */
@@ -69,48 +74,14 @@ const NodeListContext = React.createContext<NodeListContextType | undefined>(
   undefined
 );
 
-function normalizeTrafficLimit(value: unknown): number {
-  if (typeof value === "string") {
-    const trimmed = value.trim();
-    if (!trimmed) return 0;
-
-    // Strings with units or expressions should always be parsed as byte sizes.
-    if (/[a-zA-Z\s,*]/.test(trimmed)) {
-      return stringToBytes(trimmed);
-    }
-
-    const numeric = Number(trimmed);
-    if (!Number.isFinite(numeric) || numeric <= 0) return 0;
-
-    // Backward compatibility: some payloads appear to send plain GB counts.
-    if (numeric < 1024 ** 2) {
-      return numeric * 1024 ** 3;
-    }
-
-    return numeric;
-  }
-
-  if (typeof value === "number") {
-    if (!Number.isFinite(value) || value <= 0) return 0;
-
-    // Backward compatibility: treat tiny raw numbers as legacy GiB limits.
-    if (value < 1024 ** 2) {
-      return value * 1024 ** 3;
-    }
-
-    return value;
-  }
-
-  return 0;
-}
-
 export const NodeListProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const [nodeList, setNodeList] = React.useState<NodeBasicInfo[] | null>(null);
+  const [rawNodes, setRawNodes] = React.useState<Record<string, unknown>[] | null>(null);
   const [isLoading, setIsLoading] = React.useState<boolean>(true);
   const [error, setError] = React.useState<string | null>(null);
   const { call } = useRPC2Call();
+  const { trafficBilling } = useTheme();
 
   const refresh = React.useCallback(() => {
     // setIsLoading(true);
@@ -119,50 +90,65 @@ export const NodeListProvider: React.FC<{ children: React.ReactNode }> = ({
     call<{ uuid?: string }, Record<string, any>>("common:getNodes")
       .then((result) => {
         if (!result || typeof result !== "object") {
-          setNodeList([]);
+          setRawNodes([]);
           return;
         }
-        // 将 { [uuid]: Client } 转换为 NodeBasicInfo[]
-        const list: NodeBasicInfo[] = Object.values(result).map((n: any) => ({
-          uuid: n.uuid,
-          name: n.name,
-          cpu_name: n.cpu_name,
-          virtualization: n.virtualization,
-          arch: n.arch,
-          cpu_cores: n.cpu_cores,
-          os: n.os,
-          kernel_version: n.kernel_version,
-          gpu_name: n.gpu_name,
-          region: n.region,
-          mem_total: n.mem_total,
-          swap_total: n.swap_total,
-          disk_total: n.disk_total,
-          // 兼容旧字段，若无版本信息则给空串
-          version: n.version ?? "",
-          weight: n.weight ?? 0,
-          price: n.price ?? 0,
-          tags: n.tags ?? "",
-          billing_cycle: n.billing_cycle ?? 0,
-          currency: n.currency ?? "",
-          group: n.group ?? "",
-          traffic_limit: normalizeTrafficLimit(n.traffic_limit),
-          traffic_limit_type: n.traffic_limit_type,
-          expired_at: n.expired_at ?? "",
-          created_at: n.created_at ?? "",
-          updated_at: n.updated_at ?? "",
-          ipv4: n.ipv4,
-          ipv6: n.ipv6,
-        }));
-        setNodeList(list);
+        setRawNodes(Object.values(result));
       })
       .catch((err: any) => {
         setError(err?.message || "An error occurred while fetching data");
-        setNodeList([]);
+        setRawNodes([]);
       })
       .finally(() => {
         setIsLoading(false);
       });
   }, [call]);
+
+  const nodeList = React.useMemo<NodeBasicInfo[] | null>(() => {
+    if (!rawNodes) return null;
+    const billing = parseTrafficBilling(trafficBilling);
+    const notes = new Map(billing.notes.map((note) => [note.uuid, note]));
+    return rawNodes.map((n) => {
+      const record = n as Record<string, any>;
+      const uuid = String(record.uuid ?? "");
+      const note = notes.get(uuid.trim().toLowerCase());
+      const quota = classifyTrafficLimit(
+        record.traffic_limit,
+        trafficStatementsForNode([record.public_remark, record.tags], note),
+      );
+      return {
+        uuid,
+        name: record.name,
+        cpu_name: record.cpu_name,
+        virtualization: record.virtualization,
+        arch: record.arch,
+        cpu_cores: record.cpu_cores,
+        os: record.os,
+        kernel_version: record.kernel_version,
+        gpu_name: record.gpu_name,
+        region: record.region,
+        mem_total: record.mem_total,
+        swap_total: record.swap_total,
+        disk_total: record.disk_total,
+        version: record.version ?? "",
+        weight: record.weight ?? 0,
+        price: record.price ?? 0,
+        tags: record.tags ?? "",
+        billing_cycle: record.billing_cycle ?? 0,
+        currency: record.currency ?? "",
+        group: record.group ?? "",
+        traffic_limit: quota.bytes,
+        traffic_quota: quota.state,
+        traffic_note: quota.note,
+        traffic_limit_type: record.traffic_limit_type,
+        expired_at: record.expired_at ?? "",
+        created_at: record.created_at ?? "",
+        updated_at: record.updated_at ?? "",
+        ipv4: record.ipv4,
+        ipv6: record.ipv6,
+      };
+    });
+  }, [rawNodes, trafficBilling]);
 
   React.useEffect(() => {
     refresh();

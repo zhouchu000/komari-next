@@ -1,164 +1,139 @@
-import { useEffect, useState } from 'react';
-import { useRPC2Call } from '@/contexts/RPC2Context';
-import { fetchPingRecords, PING_RECORDS_AUTO_REFRESH_MS, type PingRecord } from '@/lib/pingRecords';
+import { useEffect, useMemo, useState } from "react";
+import { useRPC2Call } from "@/contexts/RPC2Context";
+import { fetchPingRecords, PING_RECORDS_AUTO_REFRESH_MS, type PingRecord, type PingTaskInfo } from "@/lib/pingRecords";
+import {
+  buildHomePerspectives,
+  buildNodePingReport,
+  parseHomeLatencyMap,
+  type HomePerspective,
+  type PingReport,
+} from "@/lib/pingTargets";
 
-export interface PingHistoryPoint {
-  time: string;
-  latency: number | null;
-  loss: number | null;
-}
+export type { PingHistoryPoint, PingReport, PingTargetReport } from "@/lib/pingTargets";
 
 export interface PingStats {
-  avgLatency: number;
-  avgLoss: number;
-  avgVolatility: number;
-  history: PingHistoryPoint[];
+  report: PingReport;
+  homePerspective: HomePerspective;
+  homeState: "loading" | "unconfigured" | "unknown" | "ready";
+  isSource: boolean;
   hasData: boolean;
   isLoaded: boolean;
   isLoading: boolean;
 }
 
-const HISTORY_BUCKET_COUNT = 28;
+type RecordBundle = { records: PingRecord[]; tasks: PingTaskInfo[] };
 
-function createEmptyStats({
-  isLoaded = false,
-  isLoading = false,
-}: { isLoaded?: boolean; isLoading?: boolean } = {}): PingStats {
+const emptyReport: PingReport = { targets: [], role: "server", error: null };
+
+function createStats(partial: Partial<PingStats> = {}): PingStats {
   return {
-    avgLatency: 0,
-    avgLoss: 0,
-    avgVolatility: 0,
-    history: [],
+    report: emptyReport,
+    homePerspective: { status: "unconfigured", targets: [] },
+    homeState: "unconfigured",
+    isSource: false,
     hasData: false,
-    isLoaded,
-    isLoading,
+    isLoaded: false,
+    isLoading: false,
+    ...partial,
   };
 }
 
-function buildPingHistory(records: PingRecord[]): PingHistoryPoint[] {
-  const sortedRecords = records
-    .map((record) => ({
-      ...record,
-      timestamp: new Date(record.time).getTime(),
-    }))
-    .filter((record) => Number.isFinite(record.timestamp))
-    .sort((left, right) => left.timestamp - right.timestamp);
-
-  if (sortedRecords.length === 0) {
-    return [];
-  }
-
-  const firstTime = sortedRecords[0].timestamp;
-  const lastTime = sortedRecords[sortedRecords.length - 1].timestamp;
-  const bucketCount = Math.min(HISTORY_BUCKET_COUNT, sortedRecords.length);
-  const bucketSize = Math.max(1, (lastTime - firstTime) / bucketCount);
-
-  return Array.from({ length: bucketCount }, (_, index) => {
-    const startTime = firstTime + bucketSize * index;
-    const endTime = index === bucketCount - 1 ? lastTime + 1 : startTime + bucketSize;
-    const bucketRecords = sortedRecords.filter(
-      (record) => record.timestamp >= startTime && record.timestamp < endTime,
-    );
-    const validLatencyRecords = bucketRecords.filter((record) => record.value >= 0);
-    const lostRecords = bucketRecords.length - validLatencyRecords.length;
-    const latency =
-      validLatencyRecords.length > 0
-        ? validLatencyRecords.reduce((sum, record) => sum + record.value, 0) / validLatencyRecords.length
-        : null;
-    const loss = bucketRecords.length > 0 ? (lostRecords / bucketRecords.length) * 100 : null;
-
-    return {
-      time: new Date(startTime).toISOString(),
-      latency,
-      loss,
-    };
-  });
-}
-
-export function usePingStats(uuid: string, hours: number = 24, enabled: boolean = true): PingStats {
+export function usePingStats(
+  uuid: string,
+  hours: number = 24,
+  enabled: boolean = true,
+  homeLatencyMap = "",
+): PingStats {
   const { call } = useRPC2Call();
-  const [stats, setStats] = useState<PingStats>(() => createEmptyStats());
+  const map = useMemo(() => parseHomeLatencyMap(homeLatencyMap), [homeLatencyMap]);
+  const normalizedUuid = uuid.trim().toLowerCase();
+  const isSource = Boolean(map.sourceUuid && map.sourceUuid === normalizedUuid);
+  const sourceUuid = !isSource && map.configured ? map.sourceUuid : null;
+  const [stats, setStats] = useState<PingStats>(() => createStats({ isSource }));
 
   useEffect(() => {
-    if (!enabled) {
-      return;
-    }
-
-    if (!uuid.trim()) {
-      setStats(createEmptyStats({ isLoaded: true }));
+    if (!enabled) return;
+    if (!normalizedUuid) {
+      setStats(createStats({ isLoaded: true, isSource }));
       return;
     }
 
     let active = true;
+    let own: RecordBundle | null = null;
+    let source: RecordBundle | null = null;
+    let ownLoaded = false;
+    let sourceLoaded = sourceUuid == null;
+    let sourceFailed = false;
 
-    let hasReceivedResponse = false;
+    const publish = () => {
+      if (!active) return;
+      const report = buildNodePingReport(own?.records, own?.tasks, isSource ? "home" : "server", isSource ? map.routes : []);
+      let homePerspective: HomePerspective = { status: "unconfigured", targets: [] };
+      let homeState: PingStats["homeState"] = "unconfigured";
+      if (isSource) {
+        homePerspective = { status: "ready", targets: report.targets };
+        homeState = "ready";
+      } else if (!sourceLoaded) {
+        homeState = "loading";
+      } else if (!map.configured) {
+        homeState = "unconfigured";
+      } else if (sourceFailed) {
+        homeState = "unknown";
+      } else {
+        homePerspective = buildHomePerspectives(normalizedUuid, map, source?.records, source?.tasks);
+        homeState = homePerspective.status === "unconfigured" ? "unconfigured" : "ready";
+      }
+      setStats({
+        report,
+        homePerspective,
+        homeState,
+        isSource,
+        hasData: report.targets.some((target) => target.successCount > 0 || target.failureCount > 0),
+        isLoaded: ownLoaded,
+        isLoading: !ownLoaded,
+      });
+    };
 
-    const fetchStats = async (forceRefresh = false) => {
+    const loadOwn = async (forceRefresh = false) => {
       try {
-        if (!hasReceivedResponse) {
-          setStats((previous) => ({ ...previous, isLoading: true }));
-        }
-
-        const result = await fetchPingRecords(call, uuid, hours, { forceRefresh });
-        if (!active) return;
-
-        hasReceivedResponse = true;
-        const records = result?.records || [];
-        const tasks = result?.tasks || [];
-
-        if (records.length === 0 || tasks.length === 0) {
-          setStats(createEmptyStats({ isLoaded: true }));
-          return;
-        }
-
-        const history = buildPingHistory(records);
-        const latencyValues = tasks
-          .map((task) => task.avg ?? task.latest ?? task.value ?? task.p50)
-          .filter((value): value is number => typeof value === 'number' && Number.isFinite(value));
-        const avgLatency = latencyValues.length > 0
-          ? latencyValues.reduce((sum, value) => sum + value, 0) / latencyValues.length
-          : 0;
-
-        // Calculate average loss from tasks
-        const totalLoss = tasks.reduce((sum, task) => sum + (task.loss || 0), 0);
-        const avgLoss = tasks.length > 0 ? totalLoss / tasks.length : 0;
-
-        // Calculate volatility (p99/p50 ratio average)
-        const volatilityValues = tasks
-          .filter(task => task.p99_p50_ratio !== undefined && task.p99_p50_ratio > 0)
-          .map(task => task.p99_p50_ratio!);
-
-        const avgVolatility = volatilityValues.length > 0
-          ? volatilityValues.reduce((sum, val) => sum + val, 0) / volatilityValues.length
-          : 0;
-
-        setStats({
-          avgLatency,
-          avgLoss,
-          avgVolatility,
-          history,
-          hasData: true,
-          isLoaded: true,
-          isLoading: false,
-        });
+        const result = await fetchPingRecords(call, normalizedUuid, hours, { forceRefresh });
+        own = { records: result.records, tasks: result.tasks };
       } catch {
-        if (!active) return;
-        if (!hasReceivedResponse) {
-          setStats(createEmptyStats({ isLoaded: true }));
-        }
+        own = { records: [], tasks: [] };
+      } finally {
+        ownLoaded = true;
+        publish();
       }
     };
 
-    void fetchStats();
-    const refreshTimer = window.setInterval(() => {
-      void fetchStats(true);
+    const loadSource = async (forceRefresh = false) => {
+      if (!sourceUuid) return;
+      try {
+        const result = await fetchPingRecords(call, sourceUuid, hours, { forceRefresh });
+        source = { records: result.records, tasks: result.tasks };
+        sourceFailed = false;
+      } catch {
+        source = null;
+        sourceFailed = true;
+      } finally {
+        sourceLoaded = true;
+        publish();
+      }
+    };
+
+    publish();
+    void loadOwn();
+    void loadSource();
+    const timer = window.setInterval(() => {
+      void loadOwn(true);
+      void loadSource(true);
     }, PING_RECORDS_AUTO_REFRESH_MS);
 
     return () => {
       active = false;
-      window.clearInterval(refreshTimer);
+      window.clearInterval(timer);
     };
-  }, [uuid, hours, enabled, call]);
+  }, [normalizedUuid, hours, enabled, call, isSource, map, sourceUuid]);
 
   return stats;
 }

@@ -3,6 +3,7 @@ import { useNodeList } from "@/contexts/NodeListContext";
 import { useLiveData } from "@/contexts/LiveDataContext";
 import { formatUptime } from "./Node";
 import { formatBytes } from "@/utils/unitHelper";
+import { describeTrafficQuota, presentTrafficQuota } from "@/lib/trafficQuota";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 type DetailsGridProps = {
@@ -42,6 +43,17 @@ export const DetailsGrid = ({ uuid, gap }: DetailsGridProps) => {
   const { live_data } = useLiveData();
   const node = nodeList?.find((n) => n.uuid === uuid);
   const data = live_data?.data.data[uuid ?? ""];
+  const trafficPresentation = presentTrafficQuota({
+    state: node?.traffic_quota ?? "unknown",
+    bytes: node?.traffic_limit ?? 0,
+    note: node?.traffic_note ?? null,
+  });
+  const usedTraffic = (data?.network.totalUp || 0) + (data?.network.totalDown || 0);
+  const trafficQuotaText = describeTrafficQuota(
+    trafficPresentation,
+    usedTraffic,
+    t("common.traffic_unknown", { defaultValue: "未知配额" }),
+  ).text;
 
   return (
     <div className={`grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-${gap ?? "4"} w-full`}>
@@ -89,6 +101,7 @@ export const DetailsGrid = ({ uuid, gap }: DetailsGridProps) => {
             <span className="text-muted-foreground whitespace-nowrap">↓ {formatBytes(data?.network.totalDown || 0)}</span>
           </div>
         }
+        subValue={trafficQuotaText}
       />
 
       {/* RAM */}

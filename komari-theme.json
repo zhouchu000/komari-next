@@ -1,8 +1,8 @@
 {
     "name": "Komari Next",
     "short": "next",
-    "description": "NextJS theme for Komari Monitor",
-    "version": "1.4.20",
+    "description": "NextJS theme for Komari Monitor, with city-level map and per-target latency",
+    "version": "1.5.0",
     "author": "tonyliuzj",
     "url": "https://github.com/tonyliuzj/komari-next",
     "preview": "preview.png",
@@ -23,7 +23,7 @@
                     "midnight",
                     "rose"
                 ],
-                "default": "default"
+                "default": "midnight"
             },
             {
                 "key": "cardLayout",
@@ -46,7 +46,7 @@
                     "default",
                     "quality-bars"
                 ],
-                "default": "default"
+                "default": "quality-bars"
             },
             {
                 "key": "cardBlurEnabled",
@@ -123,7 +123,7 @@
                     "dark",
                     "system"
                 ],
-                "default": "system"
+                "default": "dark"
             },
             {
                 "key": "language",
@@ -135,7 +135,7 @@
                     "zh-CN",
                     "zh-TW"
                 ],
-                "default": "auto"
+                "default": "zh-CN"
             },
             {
                 "key": "backgroundImageUrl",
@@ -217,7 +217,79 @@
                 "key": "guestDisplay.showExpiredAt",
                 "type": "bool",
                 "label": "Show expiration to guests",
-                "default": false
+                "default": true
+            },
+            {
+                "type": "title",
+                "name": {
+                    "zh-CN": "地图与家宽延迟",
+                    "zh-TW": "地圖與家寬延遲",
+                    "en-US": "Map and home latency"
+                }
+            },
+            {
+                "key": "nodeCityMap",
+                "type": "text",
+                "default": "",
+                "label": "City map JSON",
+                "name": {
+                    "zh-CN": "城市地图 JSON",
+                    "zh-TW": "城市地圖 JSON",
+                    "en-US": "City map JSON"
+                },
+                "help": {
+                    "zh-CN": "粘贴 UUID 到城市坐标的 JSON。默认留空，不把私人节点写进主题。未知或冲突坐标不会落点，也不会显示 IP。",
+                    "zh-TW": "貼上 UUID 到城市座標的 JSON。預設留空。未知或衝突座標不會落點，也不會顯示 IP。",
+                    "en-US": "Paste UUID to city coordinate JSON. Leave empty by default. Unknown or conflicting coordinates are not pinned, and IP addresses are not shown."
+                }
+            },
+            {
+                "key": "homeLatencyMap",
+                "type": "text",
+                "default": "",
+                "label": "Home latency map JSON",
+                "name": {
+                    "zh-CN": "家宽延迟映射 JSON",
+                    "zh-TW": "家寬延遲映射 JSON",
+                    "en-US": "Home latency map JSON"
+                },
+                "help": {
+                    "zh-CN": "填写 source_uuid 和 routes（task_id、server_uuid、protocol）。留空显示未配置。不要把测速任务写进来。没有映射或没有样本时显示未配置或未知。",
+                    "zh-TW": "填寫 source_uuid 和 routes（task_id、server_uuid、protocol）。留空顯示未配置。不要把測速任務寫進來。",
+                    "en-US": "Set source_uuid and routes (task_id, server_uuid, protocol). Empty means not configured. Do not add speed-test tasks."
+                }
+            },
+            {
+                "key": "trafficBilling",
+                "default": "",
+                "label": "Traffic billing JSON",
+                "name": {
+                    "zh-CN": "流量计费说明 JSON",
+                    "zh-TW": "流量計費說明 JSON",
+                    "en-US": "Traffic billing JSON"
+                },
+                "help": {
+                    "zh-CN": "只填写已核实的套餐说明。billing 为 bandwidth 时显示按带宽不计流量；billing 为 unlimited 时才显示不限额。留空时，0、缺失和「配额未公开」显示未知配额，长备注里的相同字样也不会显示成无限。不要把私人 UUID 写进主题默认值。",
+                    "zh-TW": "只填寫已核實的套餐說明。billing 為 bandwidth 時顯示按頻寬不計流量；billing 為 unlimited 時才顯示不限額。留空時，0 和缺失顯示未知配額。",
+                    "en-US": "Only list a verified plan statement. bandwidth shows billed by bandwidth, not traffic. unlimited is the only value that shows an unlimited quota. Empty, and a traffic_limit of 0 or missing, stays unknown and is not shown as unlimited."
+                },
+                "type": "text"
+            },
+            {
+                "key": "latencyQuality",
+                "default": "",
+                "label": "Latency quality JSON",
+                "name": {
+                    "zh-CN": "延迟着色 JSON",
+                    "zh-TW": "延遲著色 JSON",
+                    "en-US": "Latency quality JSON"
+                },
+                "help": {
+                    "zh-CN": "留空时按每条线路自己的成功样本估计正常水平：正常为绿，偏高为黄，明显高于本线路才为红。样本不足不判断异常，无样本为灰，失败仍是不可用。丢包单独着色。routes 可按 source、task_id 或 server_uuid、protocol 写明绿黄上限。不要把私人 UUID 写进主题默认值。",
+                    "zh-TW": "留空時按每條線路自己的成功樣本估計正常水平。樣本不足不判斷異常，無樣本為灰，失敗仍是不可用。不要把私人 UUID 寫進主題預設值。",
+                    "en-US": "Empty uses each route's own successful samples as its normal level. Green is normal, yellow is elevated, and red is clearly above that route. Too few samples are not judged, missing samples stay gray, and failures stay unavailable. Packet loss is colored separately. Do not put private UUIDs in the theme default."
+                },
+                "type": "text"
             }
         ],
         "fields": [
@@ -236,7 +308,7 @@
                     "zh-CN": "设置主题默认颜色方案，访客仍可在本地覆盖。",
                     "en-US": "Set the default color scheme. Visitors can still override it locally."
                 },
-                "default": "default",
+                "default": "midnight",
                 "options": "default,ocean,sunset,forest,midnight,rose"
             },
             {
@@ -256,7 +328,7 @@
                     "zh-CN": "默认卡片设计",
                     "en-US": "Default Card Design"
                 },
-                "default": "default",
+                "default": "quality-bars",
                 "options": "default,quality-bars"
             },
             {
@@ -343,7 +415,7 @@
                     "zh-CN": "默认外观",
                     "en-US": "Default Appearance"
                 },
-                "default": "system",
+                "default": "dark",
                 "options": "light,dark,system"
             },
             {
@@ -357,7 +429,7 @@
                     "zh-CN": "选择 auto 时使用访客浏览器语言。",
                     "en-US": "Use auto to follow the visitor browser language."
                 },
-                "default": "auto",
+                "default": "zh-CN",
                 "options": "auto,en,zh-CN,zh-TW"
             },
             {
@@ -504,7 +576,79 @@
                     "zh-TW": "開啟後，未登入訪客可以看到節點到期狀態。",
                     "en-US": "When enabled, visitors can see node expiration status."
                 },
-                "default": false
+                "default": true
+            },
+            {
+                "type": "title",
+                "name": {
+                    "zh-CN": "地图与家宽延迟",
+                    "zh-TW": "地圖與家寬延遲",
+                    "en-US": "Map and home latency"
+                }
+            },
+            {
+                "key": "nodeCityMap",
+                "type": "string",
+                "default": "",
+                "label": "City map JSON",
+                "name": {
+                    "zh-CN": "城市地图 JSON",
+                    "zh-TW": "城市地圖 JSON",
+                    "en-US": "City map JSON"
+                },
+                "help": {
+                    "zh-CN": "粘贴 UUID 到城市坐标的 JSON。默认留空，不把私人节点写进主题。未知或冲突坐标不会落点，也不会显示 IP。",
+                    "zh-TW": "貼上 UUID 到城市座標的 JSON。預設留空。未知或衝突座標不會落點，也不會顯示 IP。",
+                    "en-US": "Paste UUID to city coordinate JSON. Leave empty by default. Unknown or conflicting coordinates are not pinned, and IP addresses are not shown."
+                }
+            },
+            {
+                "key": "homeLatencyMap",
+                "type": "string",
+                "default": "",
+                "label": "Home latency map JSON",
+                "name": {
+                    "zh-CN": "家宽延迟映射 JSON",
+                    "zh-TW": "家寬延遲映射 JSON",
+                    "en-US": "Home latency map JSON"
+                },
+                "help": {
+                    "zh-CN": "填写 source_uuid 和 routes（task_id、server_uuid、protocol）。留空显示未配置。不要把测速任务写进来。没有映射或没有样本时显示未配置或未知。",
+                    "zh-TW": "填寫 source_uuid 和 routes（task_id、server_uuid、protocol）。留空顯示未配置。不要把測速任務寫進來。",
+                    "en-US": "Set source_uuid and routes (task_id, server_uuid, protocol). Empty means not configured. Do not add speed-test tasks."
+                }
+            },
+            {
+                "key": "trafficBilling",
+                "default": "",
+                "label": "Traffic billing JSON",
+                "name": {
+                    "zh-CN": "流量计费说明 JSON",
+                    "zh-TW": "流量計費說明 JSON",
+                    "en-US": "Traffic billing JSON"
+                },
+                "help": {
+                    "zh-CN": "只填写已核实的套餐说明。billing 为 bandwidth 时显示按带宽不计流量；billing 为 unlimited 时才显示不限额。留空时，0、缺失和「配额未公开」显示未知配额，长备注里的相同字样也不会显示成无限。不要把私人 UUID 写进主题默认值。",
+                    "zh-TW": "只填寫已核實的套餐說明。billing 為 bandwidth 時顯示按頻寬不計流量；billing 為 unlimited 時才顯示不限額。留空時，0 和缺失顯示未知配額。",
+                    "en-US": "Only list a verified plan statement. bandwidth shows billed by bandwidth, not traffic. unlimited is the only value that shows an unlimited quota. Empty, and a traffic_limit of 0 or missing, stays unknown and is not shown as unlimited."
+                },
+                "type": "string"
+            },
+            {
+                "key": "latencyQuality",
+                "default": "",
+                "label": "Latency quality JSON",
+                "name": {
+                    "zh-CN": "延迟着色 JSON",
+                    "zh-TW": "延遲著色 JSON",
+                    "en-US": "Latency quality JSON"
+                },
+                "help": {
+                    "zh-CN": "留空时按每条线路自己的成功样本估计正常水平：正常为绿，偏高为黄，明显高于本线路才为红。样本不足不判断异常，无样本为灰，失败仍是不可用。丢包单独着色。routes 可按 source、task_id 或 server_uuid、protocol 写明绿黄上限。不要把私人 UUID 写进主题默认值。",
+                    "zh-TW": "留空時按每條線路自己的成功樣本估計正常水平。樣本不足不判斷異常，無樣本為灰，失敗仍是不可用。不要把私人 UUID 寫進主題預設值。",
+                    "en-US": "Empty uses each route's own successful samples as its normal level. Green is normal, yellow is elevated, and red is clearly above that route. Too few samples are not judged, missing samples stay gray, and failures stay unavailable. Packet loss is colored separately. Do not put private UUIDs in the theme default."
+                },
+                "type": "text"
             }
         ],
         "options": [
@@ -519,7 +663,7 @@
                     "zh-CN": "默认颜色主题",
                     "en-US": "Default Color Theme"
                 },
-                "default": "default",
+                "default": "midnight",
                 "options": "default,ocean,sunset,forest,midnight,rose"
             },
             {
@@ -539,7 +683,7 @@
                     "zh-CN": "默认卡片设计",
                     "en-US": "Default Card Design"
                 },
-                "default": "default",
+                "default": "quality-bars",
                 "options": "default,quality-bars"
             },
             {
@@ -626,7 +770,7 @@
                     "zh-CN": "默认外观",
                     "en-US": "Default Appearance"
                 },
-                "default": "system",
+                "default": "dark",
                 "options": "light,dark,system"
             },
             {
@@ -640,7 +784,7 @@
                     "zh-CN": "选择 auto 时使用访客浏览器语言。",
                     "en-US": "Use auto to follow the visitor browser language."
                 },
-                "default": "auto",
+                "default": "zh-CN",
                 "options": "auto,en,zh-CN,zh-TW"
             },
             {
@@ -787,7 +931,79 @@
                     "zh-TW": "開啟後，未登入訪客可以看到節點到期狀態。",
                     "en-US": "When enabled, visitors can see node expiration status."
                 },
-                "default": false
+                "default": true
+            },
+            {
+                "type": "title",
+                "name": {
+                    "zh-CN": "地图与家宽延迟",
+                    "zh-TW": "地圖與家寬延遲",
+                    "en-US": "Map and home latency"
+                }
+            },
+            {
+                "key": "nodeCityMap",
+                "type": "string",
+                "default": "",
+                "label": "City map JSON",
+                "name": {
+                    "zh-CN": "城市地图 JSON",
+                    "zh-TW": "城市地圖 JSON",
+                    "en-US": "City map JSON"
+                },
+                "help": {
+                    "zh-CN": "粘贴 UUID 到城市坐标的 JSON。默认留空，不把私人节点写进主题。未知或冲突坐标不会落点，也不会显示 IP。",
+                    "zh-TW": "貼上 UUID 到城市座標的 JSON。預設留空。未知或衝突座標不會落點，也不會顯示 IP。",
+                    "en-US": "Paste UUID to city coordinate JSON. Leave empty by default. Unknown or conflicting coordinates are not pinned, and IP addresses are not shown."
+                }
+            },
+            {
+                "key": "homeLatencyMap",
+                "type": "string",
+                "default": "",
+                "label": "Home latency map JSON",
+                "name": {
+                    "zh-CN": "家宽延迟映射 JSON",
+                    "zh-TW": "家寬延遲映射 JSON",
+                    "en-US": "Home latency map JSON"
+                },
+                "help": {
+                    "zh-CN": "填写 source_uuid 和 routes（task_id、server_uuid、protocol）。留空显示未配置。不要把测速任务写进来。没有映射或没有样本时显示未配置或未知。",
+                    "zh-TW": "填寫 source_uuid 和 routes（task_id、server_uuid、protocol）。留空顯示未配置。不要把測速任務寫進來。",
+                    "en-US": "Set source_uuid and routes (task_id, server_uuid, protocol). Empty means not configured. Do not add speed-test tasks."
+                }
+            },
+            {
+                "key": "trafficBilling",
+                "default": "",
+                "label": "Traffic billing JSON",
+                "name": {
+                    "zh-CN": "流量计费说明 JSON",
+                    "zh-TW": "流量計費說明 JSON",
+                    "en-US": "Traffic billing JSON"
+                },
+                "help": {
+                    "zh-CN": "只填写已核实的套餐说明。billing 为 bandwidth 时显示按带宽不计流量；billing 为 unlimited 时才显示不限额。留空时，0、缺失和「配额未公开」显示未知配额，长备注里的相同字样也不会显示成无限。不要把私人 UUID 写进主题默认值。",
+                    "zh-TW": "只填寫已核實的套餐說明。billing 為 bandwidth 時顯示按頻寬不計流量；billing 為 unlimited 時才顯示不限額。留空時，0 和缺失顯示未知配額。",
+                    "en-US": "Only list a verified plan statement. bandwidth shows billed by bandwidth, not traffic. unlimited is the only value that shows an unlimited quota. Empty, and a traffic_limit of 0 or missing, stays unknown and is not shown as unlimited."
+                },
+                "type": "string"
+            },
+            {
+                "key": "latencyQuality",
+                "default": "",
+                "label": "Latency quality JSON",
+                "name": {
+                    "zh-CN": "延迟着色 JSON",
+                    "zh-TW": "延遲著色 JSON",
+                    "en-US": "Latency quality JSON"
+                },
+                "help": {
+                    "zh-CN": "留空时按每条线路自己的成功样本估计正常水平：正常为绿，偏高为黄，明显高于本线路才为红。样本不足不判断异常，无样本为灰，失败仍是不可用。丢包单独着色。routes 可按 source、task_id 或 server_uuid、protocol 写明绿黄上限。不要把私人 UUID 写进主题默认值。",
+                    "zh-TW": "留空時按每條線路自己的成功樣本估計正常水平。樣本不足不判斷異常，無樣本為灰，失敗仍是不可用。不要把私人 UUID 寫進主題預設值。",
+                    "en-US": "Empty uses each route's own successful samples as its normal level. Green is normal, yellow is elevated, and red is clearly above that route. Too few samples are not judged, missing samples stay gray, and failures stay unavailable. Packet loss is colored separately. Do not put private UUIDs in the theme default."
+                },
+                "type": "text"
             }
         ],
         "items": [
@@ -806,7 +1022,7 @@
                     "zh-CN": "设置主题默认颜色方案，访客仍可在本地覆盖。",
                     "en-US": "Set the default color scheme. Visitors can still override it locally."
                 },
-                "default": "default",
+                "default": "midnight",
                 "options": "default,ocean,sunset,forest,midnight,rose"
             },
             {
@@ -826,7 +1042,7 @@
                     "zh-CN": "默认卡片设计",
                     "en-US": "Default Card Design"
                 },
-                "default": "default",
+                "default": "quality-bars",
                 "options": "default,quality-bars"
             },
             {
@@ -913,7 +1129,7 @@
                     "zh-CN": "默认外观",
                     "en-US": "Default Appearance"
                 },
-                "default": "system",
+                "default": "dark",
                 "options": "light,dark,system"
             },
             {
@@ -927,7 +1143,7 @@
                     "zh-CN": "选择 auto 时使用访客浏览器语言。",
                     "en-US": "Use auto to follow the visitor browser language."
                 },
-                "default": "auto",
+                "default": "zh-CN",
                 "options": "auto,en,zh-CN,zh-TW"
             },
             {
@@ -1074,7 +1290,79 @@
                     "zh-TW": "開啟後，未登入訪客可以看到節點到期狀態。",
                     "en-US": "When enabled, visitors can see node expiration status."
                 },
-                "default": false
+                "default": true
+            },
+            {
+                "type": "title",
+                "name": {
+                    "zh-CN": "地图与家宽延迟",
+                    "zh-TW": "地圖與家寬延遲",
+                    "en-US": "Map and home latency"
+                }
+            },
+            {
+                "key": "nodeCityMap",
+                "type": "string",
+                "default": "",
+                "label": "City map JSON",
+                "name": {
+                    "zh-CN": "城市地图 JSON",
+                    "zh-TW": "城市地圖 JSON",
+                    "en-US": "City map JSON"
+                },
+                "help": {
+                    "zh-CN": "粘贴 UUID 到城市坐标的 JSON。默认留空，不把私人节点写进主题。未知或冲突坐标不会落点，也不会显示 IP。",
+                    "zh-TW": "貼上 UUID 到城市座標的 JSON。預設留空。未知或衝突座標不會落點，也不會顯示 IP。",
+                    "en-US": "Paste UUID to city coordinate JSON. Leave empty by default. Unknown or conflicting coordinates are not pinned, and IP addresses are not shown."
+                }
+            },
+            {
+                "key": "homeLatencyMap",
+                "type": "string",
+                "default": "",
+                "label": "Home latency map JSON",
+                "name": {
+                    "zh-CN": "家宽延迟映射 JSON",
+                    "zh-TW": "家寬延遲映射 JSON",
+                    "en-US": "Home latency map JSON"
+                },
+                "help": {
+                    "zh-CN": "填写 source_uuid 和 routes（task_id、server_uuid、protocol）。留空显示未配置。不要把测速任务写进来。没有映射或没有样本时显示未配置或未知。",
+                    "zh-TW": "填寫 source_uuid 和 routes（task_id、server_uuid、protocol）。留空顯示未配置。不要把測速任務寫進來。",
+                    "en-US": "Set source_uuid and routes (task_id, server_uuid, protocol). Empty means not configured. Do not add speed-test tasks."
+                }
+            },
+            {
+                "key": "trafficBilling",
+                "default": "",
+                "label": "Traffic billing JSON",
+                "name": {
+                    "zh-CN": "流量计费说明 JSON",
+                    "zh-TW": "流量計費說明 JSON",
+                    "en-US": "Traffic billing JSON"
+                },
+                "help": {
+                    "zh-CN": "只填写已核实的套餐说明。billing 为 bandwidth 时显示按带宽不计流量；billing 为 unlimited 时才显示不限额。留空时，0、缺失和「配额未公开」显示未知配额，长备注里的相同字样也不会显示成无限。不要把私人 UUID 写进主题默认值。",
+                    "zh-TW": "只填寫已核實的套餐說明。billing 為 bandwidth 時顯示按頻寬不計流量；billing 為 unlimited 時才顯示不限額。留空時，0 和缺失顯示未知配額。",
+                    "en-US": "Only list a verified plan statement. bandwidth shows billed by bandwidth, not traffic. unlimited is the only value that shows an unlimited quota. Empty, and a traffic_limit of 0 or missing, stays unknown and is not shown as unlimited."
+                },
+                "type": "string"
+            },
+            {
+                "key": "latencyQuality",
+                "default": "",
+                "label": "Latency quality JSON",
+                "name": {
+                    "zh-CN": "延迟着色 JSON",
+                    "zh-TW": "延遲著色 JSON",
+                    "en-US": "Latency quality JSON"
+                },
+                "help": {
+                    "zh-CN": "留空时按每条线路自己的成功样本估计正常水平：正常为绿，偏高为黄，明显高于本线路才为红。样本不足不判断异常，无样本为灰，失败仍是不可用。丢包单独着色。routes 可按 source、task_id 或 server_uuid、protocol 写明绿黄上限。不要把私人 UUID 写进主题默认值。",
+                    "zh-TW": "留空時按每條線路自己的成功樣本估計正常水平。樣本不足不判斷異常，無樣本為灰，失敗仍是不可用。不要把私人 UUID 寫進主題預設值。",
+                    "en-US": "Empty uses each route's own successful samples as its normal level. Green is normal, yellow is elevated, and red is clearly above that route. Too few samples are not judged, missing samples stay gray, and failures stay unavailable. Packet loss is colored separately. Do not put private UUIDs in the theme default."
+                },
+                "type": "text"
             }
         ],
         "data": [
@@ -1093,7 +1381,7 @@
                     "zh-CN": "设置主题默认颜色方案，访客仍可在本地覆盖。",
                     "en-US": "Set the default color scheme. Visitors can still override it locally."
                 },
-                "default": "default",
+                "default": "midnight",
                 "options": "default,ocean,sunset,forest,midnight,rose"
             },
             {
@@ -1113,7 +1401,7 @@
                     "zh-CN": "默认卡片设计",
                     "en-US": "Default Card Design"
                 },
-                "default": "default",
+                "default": "quality-bars",
                 "options": "default,quality-bars"
             },
             {
@@ -1200,7 +1488,7 @@
                     "zh-CN": "默认外观",
                     "en-US": "Default Appearance"
                 },
-                "default": "system",
+                "default": "dark",
                 "options": "light,dark,system"
             },
             {
@@ -1214,7 +1502,7 @@
                     "zh-CN": "选择 auto 时使用访客浏览器语言。",
                     "en-US": "Use auto to follow the visitor browser language."
                 },
-                "default": "auto",
+                "default": "zh-CN",
                 "options": "auto,en,zh-CN,zh-TW"
             },
             {
@@ -1361,7 +1649,79 @@
                     "zh-TW": "開啟後，未登入訪客可以看到節點到期狀態。",
                     "en-US": "When enabled, visitors can see node expiration status."
                 },
-                "default": false
+                "default": true
+            },
+            {
+                "type": "title",
+                "name": {
+                    "zh-CN": "地图与家宽延迟",
+                    "zh-TW": "地圖與家寬延遲",
+                    "en-US": "Map and home latency"
+                }
+            },
+            {
+                "key": "nodeCityMap",
+                "type": "string",
+                "default": "",
+                "label": "City map JSON",
+                "name": {
+                    "zh-CN": "城市地图 JSON",
+                    "zh-TW": "城市地圖 JSON",
+                    "en-US": "City map JSON"
+                },
+                "help": {
+                    "zh-CN": "粘贴 UUID 到城市坐标的 JSON。默认留空，不把私人节点写进主题。未知或冲突坐标不会落点，也不会显示 IP。",
+                    "zh-TW": "貼上 UUID 到城市座標的 JSON。預設留空。未知或衝突座標不會落點，也不會顯示 IP。",
+                    "en-US": "Paste UUID to city coordinate JSON. Leave empty by default. Unknown or conflicting coordinates are not pinned, and IP addresses are not shown."
+                }
+            },
+            {
+                "key": "homeLatencyMap",
+                "type": "string",
+                "default": "",
+                "label": "Home latency map JSON",
+                "name": {
+                    "zh-CN": "家宽延迟映射 JSON",
+                    "zh-TW": "家寬延遲映射 JSON",
+                    "en-US": "Home latency map JSON"
+                },
+                "help": {
+                    "zh-CN": "填写 source_uuid 和 routes（task_id、server_uuid、protocol）。留空显示未配置。不要把测速任务写进来。没有映射或没有样本时显示未配置或未知。",
+                    "zh-TW": "填寫 source_uuid 和 routes（task_id、server_uuid、protocol）。留空顯示未配置。不要把測速任務寫進來。",
+                    "en-US": "Set source_uuid and routes (task_id, server_uuid, protocol). Empty means not configured. Do not add speed-test tasks."
+                }
+            },
+            {
+                "key": "trafficBilling",
+                "default": "",
+                "label": "Traffic billing JSON",
+                "name": {
+                    "zh-CN": "流量计费说明 JSON",
+                    "zh-TW": "流量計費說明 JSON",
+                    "en-US": "Traffic billing JSON"
+                },
+                "help": {
+                    "zh-CN": "只填写已核实的套餐说明。billing 为 bandwidth 时显示按带宽不计流量；billing 为 unlimited 时才显示不限额。留空时，0、缺失和「配额未公开」显示未知配额，长备注里的相同字样也不会显示成无限。不要把私人 UUID 写进主题默认值。",
+                    "zh-TW": "只填寫已核實的套餐說明。billing 為 bandwidth 時顯示按頻寬不計流量；billing 為 unlimited 時才顯示不限額。留空時，0 和缺失顯示未知配額。",
+                    "en-US": "Only list a verified plan statement. bandwidth shows billed by bandwidth, not traffic. unlimited is the only value that shows an unlimited quota. Empty, and a traffic_limit of 0 or missing, stays unknown and is not shown as unlimited."
+                },
+                "type": "string"
+            },
+            {
+                "key": "latencyQuality",
+                "default": "",
+                "label": "Latency quality JSON",
+                "name": {
+                    "zh-CN": "延迟着色 JSON",
+                    "zh-TW": "延遲著色 JSON",
+                    "en-US": "Latency quality JSON"
+                },
+                "help": {
+                    "zh-CN": "留空时按每条线路自己的成功样本估计正常水平：正常为绿，偏高为黄，明显高于本线路才为红。样本不足不判断异常，无样本为灰，失败仍是不可用。丢包单独着色。routes 可按 source、task_id 或 server_uuid、protocol 写明绿黄上限。不要把私人 UUID 写进主题默认值。",
+                    "zh-TW": "留空時按每條線路自己的成功樣本估計正常水平。樣本不足不判斷異常，無樣本為灰，失敗仍是不可用。不要把私人 UUID 寫進主題預設值。",
+                    "en-US": "Empty uses each route's own successful samples as its normal level. Green is normal, yellow is elevated, and red is clearly above that route. Too few samples are not judged, missing samples stay gray, and failures stay unavailable. Packet loss is colored separately. Do not put private UUIDs in the theme default."
+                },
+                "type": "text"
             }
         ]
     }

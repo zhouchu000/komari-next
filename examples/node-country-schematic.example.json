@@ -1,0 +1,19 @@
+{
+  "purpose": "Patch one node whose country is confirmed and whose city is not. Do not replace the other nodes in nodeCityMap.",
+  "nodes": [
+    {
+      "uuid": "REPLACE_WITH_NODE_UUID",
+      "name": "示例节点",
+      "city": null,
+      "city_zh": null,
+      "country_code": "US",
+      "country_zh": "美国",
+      "latitude": null,
+      "longitude": null,
+      "coordinate_precision": "country_schematic",
+      "confidence": "country_only",
+      "pin_policy": "pin_country",
+      "location_note": "国家已确认，城市待确认"
+    }
+  ]
+}

@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { describeExpiry } from "../src/lib/expiryDisplay.ts";
+import { countrySchematicAnchor } from "../src/lib/countrySchematic.ts";
 import { buildCityMapView } from "../src/lib/nodeCityMap.ts";
 import {
   buildHomePerspectives,
@@ -301,6 +302,50 @@ test("latency color follows each route baseline instead of one millisecond cutof
   assert.equal(reported.targets[0].latestLatencyMs, null);
   assert.equal(reported.targets[0].samples[0].latency, 180);
   assert.equal(targetHeadline(reported.targets[0]), "unavailable");
+});
+
+test("country schematic pins stay distinct from cities, gaps, and offline nodes", () => {
+  const config = {
+    nodes: [
+      { uuid: "11111111-1111-4111-8111-111111111111", name: "甲", city_zh: "洛杉矶", country_code: "US", latitude: 34.05, longitude: -118.24, coordinate_precision: "city_approx", confidence: "high", same_city_group: "la", pin_policy: "pin_city" },
+      { uuid: "22222222-2222-4222-8222-222222222222", name: "乙", city_zh: "洛杉矶", country_code: "US", latitude: 34.05, longitude: -118.24, coordinate_precision: "city_approx", confidence: "high", same_city_group: "la", pin_policy: "pin_city" },
+      { uuid: "33333333-3333-4333-8333-333333333333", name: "双线示例", country_code: "US", country_zh: "美国", coordinate_precision: "country_schematic", pin_policy: "pin_country", confidence: "country_only" },
+      { uuid: "44444444-4444-4444-8444-444444444444", name: "离线示意", country_code: "US", coordinate_precision: "country_schematic", pin_policy: "pin_country" },
+      { uuid: "55555555-5555-4555-8555-555555555555", name: "仍不定位", country_code: "US", pin_policy: "do_not_pin", coordinate_precision: "unknown" },
+      { uuid: "66666666-6666-4666-8666-666666666666", name: "伪国家精度", city_zh: "洛杉矶", country_code: "US", latitude: 34.05, longitude: -118.24, coordinate_precision: "country", confidence: "high", pin_policy: "pin_city" },
+      { uuid: "88888888-8888-4888-8888-888888888888", name: "写了城市也不能冒充", city_zh: "洛杉矶", country_code: "US", country_zh: "美国", latitude: 39, longitude: -98, coordinate_precision: "country_schematic", pin_policy: "pin_country" },
+    ],
+  };
+  const nodes = [
+    ...config.nodes.map((node) => ({ uuid: node.uuid, name: node.name })),
+    { uuid: "77777777-7777-4777-8777-777777777777", name: "未配置" },
+  ];
+  const view = buildCityMapView(nodes, nodes.filter((node) => node.name !== "离线示意").map((node) => node.uuid), config);
+  const losAngeles = view.groups.find((group) => group.label === "洛杉矶");
+  assert.equal(losAngeles?.precision, "city");
+  assert.equal(losAngeles?.nodes.length, 2);
+  const schematic = view.groups.find((group) => group.nodes.some((node) => node.name === "双线示例"));
+  assert.equal(schematic?.precision, "country_schematic");
+  assert.equal(schematic?.label, "美国（示意位置，城市待确认）");
+  assert.equal(schematic?.city, null);
+  assert.equal(schematic?.nodes.some((node) => node.name === "离线示意" && node.online === false), true);
+  assert.equal(schematic?.status, "partial");
+  assert.equal(view.unmapped.some((node) => node.name === "双线示例"), false);
+  const anchor = countrySchematicAnchor("US");
+  assert.ok(anchor);
+  assert.ok(Math.abs((schematic?.latitude ?? 0) - anchor.latitude) < 1e-6);
+  assert.ok(Math.abs((schematic?.longitude ?? 0) - anchor.longitude) < 1e-6);
+  assert.ok(Math.hypot((schematic?.latitude ?? 0) - 37.751, (schematic?.longitude ?? 0) + 97.822) > 1);
+  const override = view.groups.find((group) => group.nodes.some((node) => node.name === "写了城市也不能冒充"));
+  assert.equal(override?.label, "美国（示意位置，城市待确认）");
+  assert.equal(override?.city, null);
+  assert.equal(override?.key === schematic?.key, false);
+  assert.ok(Math.abs((override?.latitude ?? 0) - 39) < 1e-6);
+  assert.equal(view.unmapped.find((node) => node.name === "未配置")?.reason, "unconfigured");
+  assert.equal(view.unmapped.find((node) => node.name === "仍不定位")?.reason, "do_not_pin");
+  assert.equal(view.unmapped.find((node) => node.name === "伪国家精度")?.reason, "unknown");
+  assert.equal(JSON.stringify(view).includes("ipv4"), false);
+  assert.equal(countrySchematicAnchor("ZZ"), null);
 });
 
 test("public defaults do not embed the example node UUIDs", () => {

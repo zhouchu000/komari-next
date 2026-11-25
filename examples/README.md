@@ -4,7 +4,9 @@
 
 ## 城市地图 `nodeCityMap`
 
-`node-city-map.example.json` 是一份可导入的城市级坐标示例。`pin_policy` 为 `do_not_pin`、坐标为空或来源冲突的节点不会落点，主题也不会改用国家中心点。同城节点聚合为一个点，点击后查看节点列表。配置里的 IP 字段会被忽略，页面不展示 IP。
+`node-city-map.example.json` 是一份可导入的城市级坐标示例。`pin_policy` 为 `do_not_pin`、坐标为空或来源冲突的节点不会落点。只写了国家、但没有 `pin_country` 的记录也不会被当成城市。同城节点聚合为一个点，点击后查看节点列表。配置里的 IP 字段会被忽略，页面不展示 IP。
+
+国家已确认、城市还不能确认时，单独把该节点改成 `pin_country`。主题使用底图上该国国界的代表点，标签固定带「示意位置，城市待确认」，不会写成某个城市或机房。未配置的节点仍然留在未定位列表。`node-country-schematic.example.json` 是只改一个节点的格式，不要拿它覆盖其他节点。
 
 ## 家宽延迟 `homeLatencyMap`
 

@@ -15,6 +15,7 @@ export interface GlobeCity {
   latitude: number;
   total: number;
   status: GlobeCityStatus;
+  precision?: "city" | "country_schematic";
 }
 
 interface CityGlobeProps {
@@ -213,21 +214,24 @@ export function CityGlobe({ cities, selectedKey, onSelect, onHover }: CityGlobeP
         const [x, y] = point;
         const color = STATUS_COLOR[city.status];
         const active = city.key === activeKey;
-        context.beginPath();
-        context.globalAlpha = active ? 0.28 : 0.18;
-        context.fillStyle = color;
-        context.arc(x, y, active ? 11 : 8, 0, Math.PI * 2);
-        context.fill();
-        context.globalAlpha = 1;
-        context.beginPath();
-        context.fillStyle = color;
-        context.arc(x, y, active ? 3.6 : 2.8, 0, Math.PI * 2);
-        context.fill();
-        if (active) {
+        const schematic = city.precision === "country_schematic";
+        if (!schematic) {
           context.beginPath();
-          context.lineWidth = 1;
-          context.strokeStyle = "rgba(236, 244, 250, 0.8)";
-          context.arc(x, y, 6.5, 0, Math.PI * 2);
+          context.globalAlpha = active ? 0.28 : 0.18;
+          context.fillStyle = color;
+          context.arc(x, y, active ? 11 : 8, 0, Math.PI * 2);
+          context.fill();
+          context.globalAlpha = 1;
+        }
+        context.beginPath();
+        context.fillStyle = color;
+        context.arc(x, y, schematic ? 2.1 : active ? 3.6 : 2.8, 0, Math.PI * 2);
+        context.fill();
+        if (schematic || active) {
+          context.beginPath();
+          context.lineWidth = schematic ? 1.4 : 1;
+          context.strokeStyle = schematic ? color : "rgba(236, 244, 250, 0.8)";
+          context.arc(x, y, schematic ? 7.5 : 6.5, 0, Math.PI * 2);
           context.stroke();
         }
         if (city.total > 1) {

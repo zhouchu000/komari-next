@@ -1,3 +1,5 @@
+import { countrySchematicAnchor, countrySchematicLabel } from "./countrySchematic";
+
 export interface MapNodeRef {
   uuid: string;
   name: string;
@@ -23,7 +25,8 @@ export interface CityMapGroup {
   countryCode: string | null;
   latitude: number;
   longitude: number;
-  confidence: "high" | "medium";
+  precision: "city" | "country_schematic";
+  confidence: "high" | "medium" | "country_only";
   total: number;
   online: number;
   offline: number;
@@ -46,6 +49,7 @@ interface CityEntry {
   name: string | null;
   city: string | null;
   cityZh: string | null;
+  countryZh: string | null;
   admin1: string | null;
   countryCode: string | null;
   latitude: number | null;
@@ -58,7 +62,7 @@ interface CityEntry {
 }
 
 const PIN_CONFIDENCE = new Set(["high", "medium"]);
-const BLOCKED_PRECISION = new Set(["unknown", "country", "country_centroid", "centroid"]);
+const BLOCKED_PRECISION = new Set(["unknown", "country", "country_centroid", "centroid", "country_schematic"]);
 const SENSITIVE_KEY = /(^|_)(ip|ipv4|ipv6|ip_address|public_ip|private_ip|host|hostname|secret|token|password|credential)s?$/i;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -106,6 +110,7 @@ function entriesConflict(left: CityEntry, right: CityEntry): boolean {
     left.sameCityGroup !== right.sameCityGroup ||
     left.city !== right.city ||
     left.cityZh !== right.cityZh ||
+    left.countryZh !== right.countryZh ||
     left.countryCode !== right.countryCode ||
     !samePoint(left, right)
   );
@@ -123,6 +128,7 @@ function readEntry(raw: unknown, fallbackUuid?: string): CityEntry | null {
     name: readText(raw.name),
     city: readText(raw.city),
     cityZh: readText(raw.city_zh ?? raw.cityZh),
+    countryZh: readText(raw.country_zh ?? raw.countryZh),
     admin1: readText(raw.admin1),
     countryCode: readText(raw.country_code ?? raw.countryCode)?.toUpperCase() ?? null,
     latitude: readCoord(raw.latitude),
@@ -186,9 +192,32 @@ export function parseNodeCityMap(input: unknown): { entries: CityEntry[]; config
   return { entries, configured: entries.length > 0, parseError: null };
 }
 
+function countryCodeValid(code: string | null): code is string {
+  return !!code && /^[A-Z]{2}$/.test(code);
+}
+
+function resolveCountryPin(entry: CityEntry): (CityEntry & { latitude: number; longitude: number }) | null {
+  if (!countryCodeValid(entry.countryCode)) return null;
+  if (entry.coordinatePrecision && entry.coordinatePrecision !== "country_schematic") return null;
+  if (entry.latitude == null && entry.longitude == null) {
+    const anchor = countrySchematicAnchor(entry.countryCode);
+    return anchor ? { ...entry, latitude: anchor.latitude, longitude: anchor.longitude, coordinatePrecision: "country_schematic" } : null;
+  }
+  const latitude = entry.latitude;
+  const longitude = entry.longitude;
+  if (latitude == null || longitude == null || !coordsValid(latitude, longitude)) return null;
+  return { ...entry, latitude, longitude, coordinatePrecision: "country_schematic" };
+}
+
 function pinBlockReason(entry: CityEntry): CityPinReason | null {
   if (entry.conflict) return "conflict";
   if (entry.pinPolicy === "do_not_pin") return "do_not_pin";
+  if (entry.pinPolicy === "pin_country") {
+    if (!countryCodeValid(entry.countryCode)) return "invalid";
+    if (entry.coordinatePrecision && entry.coordinatePrecision !== "country_schematic") return "unknown";
+    if ((entry.latitude == null) !== (entry.longitude == null)) return "invalid";
+    return resolveCountryPin(entry) ? null : "unknown";
+  }
   if (entry.pinPolicy !== "pin_city") return "unknown";
   if (!PIN_CONFIDENCE.has(entry.confidence ?? "")) return "unknown";
   if (entry.coordinatePrecision && BLOCKED_PRECISION.has(entry.coordinatePrecision)) return "unknown";
@@ -196,11 +225,17 @@ function pinBlockReason(entry: CityEntry): CityPinReason | null {
   return null;
 }
 
-function canPin(entry: CityEntry): entry is CityEntry & { latitude: number; longitude: number; confidence: "high" | "medium" } {
-  return pinBlockReason(entry) === null;
+function placedPin(entry: CityEntry): (CityEntry & { latitude: number; longitude: number }) | null {
+  if (pinBlockReason(entry) !== null) return null;
+  if (entry.pinPolicy === "pin_country") return resolveCountryPin(entry);
+  if (entry.latitude == null || entry.longitude == null) return null;
+  return { ...entry, latitude: entry.latitude, longitude: entry.longitude };
 }
 
 function groupKey(entry: CityEntry & { latitude: number; longitude: number }): string {
+  if (entry.pinPolicy === "pin_country") {
+    return `country:${entry.countryCode}:${entry.latitude.toFixed(2)}:${entry.longitude.toFixed(2)}`;
+  }
   if (entry.sameCityGroup) return `group:${entry.sameCityGroup}`;
   const city = (entry.cityZh || entry.city || "").toLowerCase();
   return `city:${city}:${entry.latitude.toFixed(3)}:${entry.longitude.toFixed(3)}`;
@@ -235,10 +270,11 @@ export function buildCityMapView(
 
   for (const node of views) {
     const entry = node.entry;
-    if (!entry || !canPin(entry)) continue;
-    const key = groupKey(entry);
+    const placed = entry ? placedPin(entry) : null;
+    if (!placed) continue;
+    const key = groupKey(placed);
     const list = pinnedMembers.get(key) ?? [];
-    list.push(entry);
+    list.push(placed);
     pinnedMembers.set(key, list);
   }
 
@@ -253,11 +289,12 @@ export function buildCityMapView(
   for (const node of views) {
     const entry = node.entry;
     const view = { uuid: node.uuid, name: node.name, online: node.online };
-    if (!entry || !canPin(entry)) {
+    const placed = entry ? placedPin(entry) : null;
+    if (!placed) {
       unmapped.push({ ...view, reason: entry ? pinBlockReason(entry) ?? "unknown" : "unconfigured" });
       continue;
     }
-    const key = groupKey(entry);
+    const key = groupKey(placed);
     if (conflictedGroups.has(key)) {
       unmapped.push({ ...view, reason: "conflict" });
       continue;
@@ -271,16 +308,20 @@ export function buildCityMapView(
       existing.status = regionStatus(existing.online, existing.offline);
       continue;
     }
-    const label = entry.cityZh || entry.city || entry.sameCityGroup || "未命名城市";
+    const countryPin = placed.pinPolicy === "pin_country";
+    const label = countryPin
+      ? countrySchematicLabel(placed.countryCode || "", placed.countryZh)
+      : placed.cityZh || placed.city || placed.sameCityGroup || "未命名城市";
     groups.set(key, {
       key,
       label,
-      city: entry.cityZh || entry.city,
-      admin1: entry.admin1,
-      countryCode: entry.countryCode,
-      latitude: entry.latitude,
-      longitude: entry.longitude,
-      confidence: entry.confidence,
+      city: countryPin ? null : placed.cityZh || placed.city,
+      admin1: countryPin ? null : placed.admin1,
+      countryCode: placed.countryCode,
+      latitude: placed.latitude,
+      longitude: placed.longitude,
+      precision: countryPin ? "country_schematic" : "city",
+      confidence: countryPin ? "country_only" : placed.confidence as "high" | "medium",
       total: 1,
       online: view.online ? 1 : 0,
       offline: view.online ? 0 : 1,

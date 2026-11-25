@@ -891,9 +891,13 @@
     "regionUnknown": "Not set",
     "cityTitle": "City distribution",
     "cityCount": "{{count}} cities",
+    "countryCount": "{{count}} country schematic",
     "unmappedNodes": "Unmapped nodes",
     "configMissing": "City mapping is not configured. Country centers are not used instead.",
     "cityPrecision": "City-level approximation. Nodes in the same city share one pin.",
+    "countrySchematic": "A ring marks a country schematic position. The city is unconfirmed, and it is not a datacenter or city coordinate.",
+    "countrySchematicNote": "Schematic position, not a city or datacenter coordinate.",
+    "countryNodeList": "Country schematic",
     "nodeList": "Nodes in this city",
     "reason": {
       "unconfigured": "Coordinates not configured",

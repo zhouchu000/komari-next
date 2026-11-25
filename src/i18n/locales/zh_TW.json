@@ -891,9 +891,13 @@
     "regionUnknown": "未填寫",
     "cityTitle": "城市分佈",
     "cityCount": "{{count}} 個城市",
+    "countryCount": "{{count}} 個國家示意",
     "unmappedNodes": "未定位節點",
     "configMissing": "未配置城市映射，不會用國家中心點代替。",
     "cityPrecision": "城市級近似，同城節點聚合在同一點。",
+    "countrySchematic": "圓環點是國家示意位置，城市待確認，不是機房或城市座標。",
+    "countrySchematicNote": "示意位置，不是城市或機房座標。",
+    "countryNodeList": "國家示意",
     "nodeList": "同城節點",
     "reason": {
       "unconfigured": "未配置座標",

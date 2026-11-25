@@ -94,6 +94,7 @@ export function NodeMapView({ nodes, liveData, mapOnly = false, cityMapConfig, i
     latitude: group.latitude,
     total: group.total,
     status: group.status,
+    precision: group.precision,
   })), [summary.groups]);
 
   const getHoverPosition = useCallback((point: { x: number; y: number }) => {
@@ -183,7 +184,10 @@ export function NodeMapView({ nodes, liveData, mapOnly = false, cityMapConfig, i
               </div>
               <CardTitle className="text-2xl tracking-tight">{t("mapView.cityTitle", { defaultValue: "城市分布" })}</CardTitle>
               <p className="text-sm text-muted-foreground">
-                {t("mapView.cityCount", { count: summary.groups.length, defaultValue: "{{count}} 个城市" })}
+                {t("mapView.cityCount", { count: summary.groups.filter((group) => group.precision === "city").length, defaultValue: "{{count}} 个城市" })}
+                {summary.groups.some((group) => group.precision === "country_schematic") && (
+                  <> · {t("mapView.countryCount", { count: summary.groups.filter((group) => group.precision === "country_schematic").length, defaultValue: "{{count}} 个国家示意" })}</>
+                )}
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -212,6 +216,11 @@ export function NodeMapView({ nodes, liveData, mapOnly = false, cityMapConfig, i
                   {!summary.configured || summary.parseError
                     ? t("mapView.configMissing", { defaultValue: "未配置城市映射，不会用国家中心点代替。" })
                     : t("mapView.cityPrecision", { defaultValue: "城市级近似，同城节点聚合在同一点。" })}
+                  {summary.groups.some((group) => group.precision === "country_schematic") && (
+                    <div className="mt-1">
+                      {t("mapView.countrySchematic", { defaultValue: "圆环点是国家示意位置，城市待确认，不是机房或城市坐标。" })}
+                    </div>
+                  )}
                 </div>
               </div>
               {summary.unmapped.length > 0 && (
@@ -253,10 +262,17 @@ export function NodeMapView({ nodes, liveData, mapOnly = false, cityMapConfig, i
                       <div className="text-xs text-muted-foreground">
                         {t("mapView.servers", { count: hoverGroup.total, defaultValue: "{{count}} 台节点" })} · {statusText(t, hoverGroup.status)}
                       </div>
+                      {hoverGroup.precision === "country_schematic" && (
+                        <div className="text-xs text-amber-700 dark:text-amber-300">
+                          {t("mapView.countrySchematicNote", { defaultValue: "示意位置，不是城市或机房坐标。" })}
+                        </div>
+                      )}
                     </div>
                   </div>
                   <Badge variant="secondary" className={`shrink-0 rounded-full ${statusBadgeClass(hoverGroup.status)}`}>
-                    {t("mapView.nodeList", { defaultValue: "同城节点" })}
+                    {hoverGroup.precision === "country_schematic"
+                      ? t("mapView.countryNodeList", { defaultValue: "国家示意" })
+                      : t("mapView.nodeList", { defaultValue: "同城节点" })}
                   </Badge>
                 </div>
                 <div className="node-map-view__node-list">
@@ -275,6 +291,11 @@ export function NodeMapView({ nodes, liveData, mapOnly = false, cityMapConfig, i
           {selectedGroup && (
             <div className="rounded-2xl border border-border/70 bg-card/80 p-4">
               <div className="mb-2 text-sm font-semibold">{selectedGroup.label}</div>
+              {selectedGroup.precision === "country_schematic" && (
+                <div className="mb-2 text-xs text-amber-700 dark:text-amber-300">
+                  {t("mapView.countrySchematicNote", { defaultValue: "示意位置，不是城市或机房坐标。" })}
+                </div>
+              )}
               <div className="space-y-1">
                 {selectedGroup.nodes.map((node) => (
                   <SpaLink key={node.uuid} href={`/instance/${node.uuid}`} className="flex items-center justify-between gap-3 rounded-md px-2 py-1 text-sm hover:bg-muted/60">

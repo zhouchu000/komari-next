@@ -388,9 +388,13 @@
     "viewDetails": "查看 {{name}} 详情",
     "cityTitle": "城市分布",
     "cityCount": "{{count}} 个城市",
+    "countryCount": "{{count}} 个国家示意",
     "unmappedNodes": "未定位节点",
     "configMissing": "未配置城市映射，不会用国家中心点代替。",
     "cityPrecision": "城市级近似，同城节点聚合在同一点。",
+    "countrySchematic": "圆环点是国家示意位置，城市待确认，不是机房或城市坐标。",
+    "countrySchematicNote": "示意位置，不是城市或机房坐标。",
+    "countryNodeList": "国家示意",
     "nodeList": "同城节点",
     "reason": {
       "unconfigured": "未配置坐标",
